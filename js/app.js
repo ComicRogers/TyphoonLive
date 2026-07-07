@@ -74,6 +74,11 @@
     buildLegend(ty);
     MAP.fitTyphoon(bounds);
     if (ty.latest) SWITCHER.updateLevel(ty.id, TYPHOON.colorOf(ty.latest.level));
+
+    // 异步加载相关资讯(不阻塞地图渲染)
+    NEWS.get(ty.name).then(r => {
+      if (currentId === id) PANEL.renderNews(r);
+    });
   }
 
   /* ---------- 启动流程 ---------- */
@@ -123,8 +128,11 @@
     // 地图点击路径点 → 面板联动
     TYPHOON.onPointClick = (p) => PANEL.showPoint(p);
 
-    // 面板列表点选 → 地图联动
-    PANEL.onPointSelect = (p) => MAP.flyTo([p.lat, p.lng]);
+    // 面板列表点选 → 地图联动 + 高亮圆环
+    PANEL.onPointSelect = (p) => {
+      MAP.flyTo([p.lat, p.lng]);
+      TYPHOON.highlight(p.lat, p.lng);
+    };
 
     // 回到台风视野(重新加载并 fitBounds)
     $('btnLocate').addEventListener('click', () => {

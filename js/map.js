@@ -1,9 +1,12 @@
 /* ============================================================
  * map.js — 地图初始化与基础图层
  *
- * 底图策略:
- *   1. 配置了天地图 key(TIANDITU_KEY)时,加载天地图矢量 + 注记;
- *   2. 未配置时,使用 Carto 暗色底图(免 key,与整体暗色风格一致)。
+ * 底图策略(优先级从高到低):
+ *   1. 配置了天地图 key(TIANDITU_KEY)→ 天地图矢量 + 中文注记;
+ *   2. 默认:高德中文底图(免 key),叠加 CSS 深色滤镜
+ *      (.tile-dark,见 style.css)融入整体暗色风格;
+ *   3. 备选:GeoQ 深蓝中文底图(原生暗色,但服务偶有不稳),
+ *      需要时将 CHINESE_BASE 改为 'geoq'。
  *
  * 同时绘制西北太平洋 24 / 48 小时警戒线(中国台风网经典要素)。
  * ============================================================ */
@@ -12,6 +15,9 @@ const MAP = (() => {
 
   // 在 https://console.tianditu.gov.cn/ 申请浏览器端 key 后填入
   const TIANDITU_KEY = '';
+
+  // 'amap' 高德(推荐,稳定) | 'geoq' GeoQ 深蓝
+  const CHINESE_BASE = 'amap';
 
   let map = null;
 
@@ -34,10 +40,18 @@ const MAP = (() => {
       );
       return [tdt('vec'), tdt('cva')]; // 矢量底图 + 中文注记
     }
-    // 免 key 暗色底图
+
+    if (CHINESE_BASE === 'geoq') {
+      return [L.tileLayer(
+        'https://map.geoq.cn/ArcGIS/rest/services/ChinaOnlineStreetPurplishBlue/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 16, attribution: '© GeoQ © 高德' }
+      )];
+    }
+
+    // 高德中文底图 + CSS 深色滤镜(className 见 style.css 的 .tile-dark)
     return [L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      { subdomains: 'abcd', maxZoom: 18, attribution: '© OpenStreetMap © CARTO' }
+      'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+      { subdomains: '1234', maxZoom: 18, className: 'tile-dark', attribution: '© 高德地图' }
     )];
   }
 

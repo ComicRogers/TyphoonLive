@@ -71,8 +71,21 @@
     </div>
 
     <div class="panel-expand" id="panelExpand">
-      <div class="track-title">历史路径点 <small>点击可在地图上定位</small></div>
-      <ol class="track-list" id="trackList"></ol>
+      <div class="sparkline" id="sparkline"></div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="track" role="tab">历史路径</button>
+        <button class="tab" data-tab="news" role="tab">相关资讯</button>
+      </div>
+
+      <div class="tab-page" data-page="track">
+        <div class="track-title">点击路径点可在地图上定位</div>
+        <ol class="track-list" id="trackList"></ol>
+      </div>
+
+      <div class="tab-page" data-page="news" hidden>
+        <ul class="news-list" id="newsList"></ul>
+      </div>
     </div>
   </section>
 
@@ -81,6 +94,7 @@
 
   <!-- 模块按依赖顺序加载,app.js 最后统一初始化 -->
   <script src="js/api.js"></script>
+  <script src="js/news.js"></script>
   <script src="js/map.js"></script>
   <script src="js/typhoon.js"></script>
   <script src="js/panel.js"></script>

@@ -1,9 +1,10 @@
 /* ============================================================
  * panel.js — 底部信息面板(bottom sheet)
  *
- *   · 三种状态:collapsed(只露头部)/ normal / expanded(含路径列表)
+ *   · 三种状态:collapsed(只露头部)/ normal / expanded
  *   · 手势:拖拽把手或点击切换
- *   · 展示:名称、编号、强度徽章、六项核心指标、历史路径列表
+ *   · 展开区:强度变化曲线 + 「路径点 / 相关资讯」两个标签页
+ *   · stat 卡片点击可展开完整文字(burst)
  * ============================================================ */
 
 const PANEL = (() => {
@@ -50,6 +51,45 @@ const PANEL = (() => {
     window.addEventListener('mouseup',    e => startY !== null && end(e.clientY));
   }
 
+  /* ---------- 标签页 ---------- */
+  function bindTabs() {
+    el.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        el.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
+        el.querySelectorAll('.tab-page').forEach(pg =>
+          pg.hidden = pg.dataset.page !== tab.dataset.tab);
+      });
+    });
+  }
+
+  /* ---------- 强度变化曲线(最大风速 sparkline) ---------- */
+  function renderSpark(ty) {
+    const box = $('sparkline');
+    const pts = ty.points.filter(p => p.speed !== null);
+    if (pts.length < 2) { box.innerHTML = ''; return; }
+
+    const W = 320, H = 56, PAD = 6;
+    const speeds = pts.map(p => p.speed);
+    const min = Math.min(...speeds), max = Math.max(...speeds);
+    const x = (i) => PAD + i * (W - PAD * 2) / (pts.length - 1);
+    const y = (v) => max === min ? H / 2 : H - PAD - (v - min) * (H - PAD * 2) / (max - min);
+
+    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.speed).toFixed(1)}`).join('');
+    const dots = pts.map((p, i) =>
+      `<circle cx="${x(i).toFixed(1)}" cy="${y(p.speed).toFixed(1)}" r="2.4"
+        fill="${TYPHOON.colorOf(p.level)}"/>`).join('');
+
+    box.innerHTML = `
+      <div class="spark-head">
+        <span>强度变化 · 最大风速</span>
+        <span class="spark-range">${min}–${max} m/s</span>
+      </div>
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+        <path d="${path}" fill="none" stroke="rgba(232,241,248,.35)" stroke-width="1.5"/>
+        ${dots}
+      </svg>`;
+  }
+
   /* ---------- 渲染 ---------- */
   function showPoint(p) {
     const lvColor = TYPHOON.colorOf(p.level);
@@ -91,11 +131,34 @@ const PANEL = (() => {
     });
   }
 
+  // 新闻区渲染,由 app.js 拉取数据后调用
+  function renderNews(result) {
+    const box = $('newsList');
+    if (!result || !result.items.length) {
+      box.innerHTML = '<li class="news-empty">暂无相关资讯</li>';
+      return;
+    }
+    const hint = result.mode === 'links'
+      ? '<li class="news-hint">按台风名生成的资讯入口,点击跳转查看最新报道</li>' : '';
+    box.innerHTML = hint + result.items.map(n => `
+      <li>
+        <a class="news-card" href="${n.url}" target="_blank" rel="noopener">
+          <span class="news-icon">${n.icon || '📰'}</span>
+          <span class="news-body">
+            <span class="news-title">${n.title}</span>
+            <span class="news-meta">${[n.source, n.time].filter(Boolean).join(' · ')}</span>
+          </span>
+          <span class="news-arrow">›</span>
+        </a>
+      </li>`).join('');
+  }
+
   function show(ty) {
     currentTyphoon = ty;
     $('tyName').textContent = ty.name;
     $('tyEnName').textContent = ty.enName ? `${ty.enName} · 编号 ${ty.id}` : `编号 ${ty.id}`;
     renderList(ty);
+    renderSpark(ty);
     if (ty.latest) showPoint(ty.latest);
     setState('normal');
   }
@@ -124,11 +187,12 @@ const PANEL = (() => {
     el = $('panel');
     bindGesture();
     bindStatClick();
+    bindTabs();
     setState('normal');
   }
 
   return {
-    init, show, showPoint,
+    init, show, showPoint, renderNews,
     set onPointSelect(fn) { onPointSelect = fn; },
   };
 })();
