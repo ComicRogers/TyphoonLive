@@ -511,23 +511,51 @@ html, body {
   touch-action: pan-y;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
 }
 .news-hint, .news-empty {
   font-size: 11px;
   color: var(--text-dim);
-  padding: 2px 2px 0;
+  padding: 6px 2px 2px;
 }
+
+/* 每条新闻:左侧时间线圆点 + 右侧卡片 */
+.news-item {
+  position: relative;
+  padding-left: 20px;
+  padding-bottom: 10px;
+}
+.news-item:last-child { padding-bottom: 0; }
+
+/* 时间线竖线 */
+.news-item::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 18px;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+.news-item:last-child::before { display: none; }
+
+/* 来源色圆点 */
+.news-dot {
+  position: absolute;
+  left: 1px;
+  top: 8px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
 .news-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
   background: rgba(255,255,255,.04);
   border: 1px solid var(--line);
   border-radius: 10px;
   color: var(--text);
-  text-decoration: none;
   cursor: pointer;
   transition: border-color .2s, background .2s;
   user-select: none;
@@ -538,6 +566,30 @@ html, body {
   border-color: var(--accent);
   background: rgba(79,216,235,.06);
   border-radius: 10px 10px 0 0;
+}
+
+/* 卡片顶栏:来源 + 相对时间 */
+.news-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px 0;
+}
+.news-source {
+  font-size: 11px;
+  font-weight: 500;
+}
+.news-reltime {
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+/* 卡片主体:图标 + 标题摘要 + 箭头 */
+.news-card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 12px 10px;
 }
 .news-icon { font-size: 18px; flex: 0 0 auto; padding-top: 1px; }
 .news-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -557,7 +609,6 @@ html, body {
   -webkit-box-orient: vertical;
   line-height: 1.5;
 }
-.news-meta { font-size: 10.5px; color: var(--text-dim); }
 .news-arrow {
   color: var(--text-dim);
   font-size: 18px;
@@ -567,6 +618,7 @@ html, body {
 }
 .news-card.expanded .news-arrow { transform: rotate(90deg); }
 
+/* 展开详情区 */
 .news-detail {
   background: rgba(79,216,235,.04);
   border: 1px solid var(--accent);

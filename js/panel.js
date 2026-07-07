@@ -148,37 +148,44 @@ const PANEL = (() => {
     }
     const hint = result.mode === 'links'
       ? '<li class="news-hint">按台风名生成的资讯入口,点击查看详情</li>' : '';
-    box.innerHTML = hint + result.items.map((n, i) => `
-      <li>
+    box.innerHTML = hint + result.items.map((n, i) => {
+      const color = n.color || '#94a3b8';
+      return `
+      <li class="news-item">
+        <span class="news-dot" style="background:${color}"></span>
         <div class="news-card" data-idx="${i}" data-url="${n.url.replace(/"/g, '&quot;')}">
-          <span class="news-icon">${n.icon || '📰'}</span>
-          <span class="news-body">
-            <span class="news-title">${n.title}</span>
-            ${n.intro ? `<span class="news-intro">${n.intro}</span>` : ''}
-            <span class="news-meta">${[n.source, n.time].filter(Boolean).join(' · ')}</span>
-          </span>
-          <span class="news-arrow">›</span>
+          <div class="news-card-top">
+            <span class="news-source" style="color:${color}">${n.source}</span>
+            <span class="news-reltime">${n.rel || n.time || ''}</span>
+          </div>
+          <div class="news-card-main">
+            <span class="news-icon">${n.icon || '📰'}</span>
+            <span class="news-body">
+              <span class="news-title">${n.title}</span>
+              ${n.intro ? `<span class="news-intro">${n.intro}</span>` : ''}
+            </span>
+            <span class="news-arrow">›</span>
+          </div>
         </div>
         <div class="news-detail" hidden>
           <p class="news-detail-text">${n.intro || n.title}</p>
           <div class="news-detail-meta">
-            <span>${[n.source, n.time].filter(Boolean).join(' · ')}</span>
+            <span>${n.source}${n.time ? ' · ' + n.time : ''}</span>
             <a class="news-action" href="${n.url}" target="_blank" rel="noopener">阅读全文 →</a>
           </div>
         </div>
-      </li>`).join('');
+      </li>`;
+    }).join('');
   }
 
   function bindNewsClick() {
     const list = $('newsList');
     list.addEventListener('click', (e) => {
-      // 点击"阅读全文"链接时放行,不处理
       if (e.target.closest('.news-action')) return;
 
       const card = e.target.closest('.news-card');
       if (!card) return;
 
-      // 收起其他已展开的卡片
       const allCards = list.querySelectorAll('.news-card.expanded');
       allCards.forEach(c => {
         if (c !== card) {
@@ -188,7 +195,6 @@ const PANEL = (() => {
         }
       });
 
-      // 切换当前卡片
       const isExpanded = card.classList.toggle('expanded');
       const detail = card.parentElement.querySelector('.news-detail');
       if (detail) detail.hidden = !isExpanded;
