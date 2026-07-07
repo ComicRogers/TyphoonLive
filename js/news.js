@@ -1,41 +1,114 @@
 /* ============================================================
- * news.js — 台风相关新闻
+ * news.js — 台风相关新闻(中国大陆直连方案)
  *
- * 两种模式:
- *   1. feed:配置了 NEWS_PROXY(CORS 代理)时,抓取 Google News
- *      中文 RSS 中该台风的最新报道,渲染真实新闻列表;
- *   2. links(默认):浏览器无法跨域抓取新闻时,提供按台风名
- *      生成的权威资讯快捷入口(百度新闻、微博话题、中央气象台等)。
+ * 三级数据源,按优先级依次尝试:
+ *   1. 天行数据(配置 TIANAPI_KEY 后启用):关键词精准搜索,
+ *      大陆 CDN + 完整 CORS 支持。在 https://www.tianapi.com
+ *      免费注册,申领「综合新闻」接口 key(每日 100 次免费额度)。
+ *   2. 新浪滚动新闻(默认,免 key):JSONP 调用不受跨域限制,
+ *      大陆直连。拉取国内/社会频道最新各 50 条,按台风名 /
+ *      "台风"关键词在前端过滤排序。
+ *   3. 快捷入口兜底:两个源都无结果时,提供按台风名生成的
+ *      权威资讯入口。
  * ============================================================ */
 
 const NEWS = (() => {
 
-  // 与 api.js 的 PROXY 同理,填入你的 CORS 代理即可启用真实新闻抓取
-  // 例:const NEWS_PROXY = 'https://your-worker.example.workers.dev/?url=';
-  const NEWS_PROXY = '';
+  // 天行数据「综合新闻」接口 key,填入后启用精准搜索(推荐)
+  const TIANAPI_KEY = '';
 
-  async function fetchFeed(name) {
-    const rss = 'https://news.google.com/rss/search?q=' +
-      encodeURIComponent(`台风 ${name}`) + '&hl=zh-CN&gl=CN&ceid=CN:zh-Hans';
+  /* ---------- JSONP 工具(绕过 CORS,大陆环境最稳) ---------- */
+  function jsonp(url, timeout = 8000) {
+    return new Promise((resolve, reject) => {
+      // 注意:新浪接口拒绝下划线开头的回调名("callback illegal character")
+      const cb = 'tyNewsCb' + Date.now() + Math.floor(Math.random() * 1e4);
+      const script = document.createElement('script');
+      const timer = setTimeout(() => { cleanup(); reject(new Error('jsonp 超时')); }, timeout);
 
+      function cleanup() {
+        clearTimeout(timer);
+        delete window[cb];
+        script.remove();
+      }
+      window[cb] = (data) => { cleanup(); resolve(data); };
+      script.onerror = () => { cleanup(); reject(new Error('jsonp 加载失败')); };
+      script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+      document.head.appendChild(script);
+    });
+  }
+
+  const fmtTime = (unixSec) => {
+    const d = new Date(+unixSec * 1000);
+    if (isNaN(d)) return '';
+    const p = (n) => String(n).padStart(2, '0');
+    return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+
+  /* ---------- 源 1:天行数据关键词搜索 ---------- */
+  async function fromTianapi(name) {
+    const url = 'https://apis.tianapi.com/generalnews/index?key=' + TIANAPI_KEY +
+      '&word=' + encodeURIComponent('台风 ' + name) + '&num=10';
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), 8000);
     try {
-      const res = await fetch(NEWS_PROXY + encodeURIComponent(rss), { signal: ctl.signal });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
-      return [...xml.querySelectorAll('item')].slice(0, 6).map(item => ({
-        title: item.querySelector('title')?.textContent || '',
-        url: item.querySelector('link')?.textContent || '#',
-        source: item.querySelector('source')?.textContent || '',
-        time: (item.querySelector('pubDate')?.textContent || '').slice(0, 22),
-      })).filter(n => n.title);
+      const res = await fetch(url, { signal: ctl.signal });
+      const data = await res.json();
+      if (data.code !== 200) throw new Error(data.msg || 'tianapi code ' + data.code);
+      return (data.result?.newslist || []).map(n => ({
+        title: n.title,
+        url: n.url,
+        source: n.source || '',
+        time: (n.ctime || '').slice(5, 16),
+        icon: '📰',
+      })).filter(n => n.title && n.url);
     } finally {
       clearTimeout(timer);
     }
   }
 
-  // 兜底:按台风名生成权威资讯入口
+  /* ---------- 源 2:新浪滚动新闻(JSONP 免 key) ---------- */
+  async function fromSina(name) {
+    // 国内、社会、国际 3 个频道 × 2 页,并行拉取约 300 条
+    const LIDS = [2510, 2669, 2511];
+    const reqs = [];
+    LIDS.forEach(lid => [1, 2].forEach(page => reqs.push(jsonp(
+      `https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=${lid}&num=50&page=${page}&t=${Date.now()}`
+    ))));
+    const results = await Promise.allSettled(reqs);
+
+    const all = [];
+    const seen = new Set();
+    results.forEach(r => {
+      if (r.status !== 'fulfilled') return;
+      (r.value?.result?.data || []).forEach(it => {
+        if (it.url && !seen.has(it.url)) { seen.add(it.url); all.push(it); }
+      });
+    });
+    if (!all.length) throw new Error('新浪滚动新闻无返回');
+
+    // 相关性排序:标题含台风名 > 含"台风" > 简介含"台风"
+    const score = (it) => {
+      const t = it.title || '', intro = it.intro || '';
+      if (name && t.includes(name)) return 3;
+      if (t.includes('台风')) return 2;
+      if ((name && intro.includes(name)) || intro.includes('台风')) return 1;
+      return 0;
+    };
+    const hits = all.map(it => [score(it), it])
+      .filter(([s]) => s > 0)
+      .sort((a, b) => b[0] - a[0] || (+b[1].ctime || 0) - (+a[1].ctime || 0))
+      .slice(0, 8)
+      .map(([, it]) => ({
+        title: it.title,
+        url: it.url,
+        source: it.media_name || '新浪新闻',
+        time: fmtTime(it.ctime),
+        icon: '🌀',
+      }));
+    return hits;
+  }
+
+  /* ---------- 源 3:快捷入口兜底 ---------- */
   function quickLinks(name) {
     const q = encodeURIComponent('台风 ' + name);
     return [
@@ -52,14 +125,17 @@ const NEWS = (() => {
 
   // 对外:返回 { mode: 'feed' | 'links', items: [...] }
   async function get(name) {
-    if (NEWS_PROXY) {
+    if (TIANAPI_KEY) {
       try {
-        const items = await fetchFeed(name);
+        const items = await fromTianapi(name);
         if (items.length) return { mode: 'feed', items };
-      } catch (e) {
-        console.warn('新闻抓取失败,使用快捷入口:', e);
-      }
+      } catch (e) { console.warn('天行数据获取失败:', e); }
     }
+    try {
+      const items = await fromSina(name);
+      if (items.length) return { mode: 'feed', items };
+    } catch (e) { console.warn('新浪新闻获取失败:', e); }
+
     return { mode: 'links', items: quickLinks(name) };
   }
 

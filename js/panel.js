@@ -16,7 +16,10 @@ const PANEL = (() => {
   const fmt = (v, dash = '—') => (v === null || v === undefined || v === '' || Number.isNaN(v)) ? dash : v;
 
   /* ---------- 状态切换 ---------- */
+  let stateChangedAt = 0; // 记录状态切换时间,用于拦截随后的"幽灵点击"
+
   function setState(state) { // 'collapsed' | 'normal' | 'expanded'
+    stateChangedAt = Date.now();
     el.classList.toggle('collapsed', state === 'collapsed');
     el.classList.toggle('expanded', state === 'expanded');
   }
@@ -46,7 +49,12 @@ const PANEL = (() => {
     };
 
     handle.addEventListener('touchstart', e => start(e.touches[0].clientY), { passive: true });
-    handle.addEventListener('touchend',   e => end(e.changedTouches[0].clientY));
+    // touchend 必须 preventDefault:否则面板上滑后,浏览器会在原触点
+    // 补发一次合成 click,正好落在滑上来的新闻链接上导致误跳转
+    handle.addEventListener('touchend', e => {
+      e.preventDefault();
+      end(e.changedTouches[0].clientY);
+    }, { passive: false });
     handle.addEventListener('mousedown',  e => start(e.clientY));
     window.addEventListener('mouseup',    e => startY !== null && end(e.clientY));
   }
@@ -188,6 +196,16 @@ const PANEL = (() => {
     bindGesture();
     bindStatClick();
     bindTabs();
+
+    // 第二道防线:面板刚完成收起/展开的瞬间(450ms 内),
+    // 拦截落在新闻链接上的点击,避免任何形式的误触跳转
+    $('newsList').addEventListener('click', (e) => {
+      if (Date.now() - stateChangedAt < 450) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+
     setState('normal');
   }
 
