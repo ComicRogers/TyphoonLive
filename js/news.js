@@ -60,6 +60,7 @@ const NEWS = (() => {
         source: n.source || '',
         time: (n.ctime || '').slice(5, 16),
         icon: '📰',
+        intro: n.description || '',
       })).filter(n => n.title && n.url);
     } finally {
       clearTimeout(timer);
@@ -104,6 +105,7 @@ const NEWS = (() => {
         source: it.media_name || '新浪新闻',
         time: fmtTime(it.ctime),
         icon: '🌀',
+        intro: it.intro || '',
       }));
     return hits;
   }

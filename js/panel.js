@@ -147,18 +147,52 @@ const PANEL = (() => {
       return;
     }
     const hint = result.mode === 'links'
-      ? '<li class="news-hint">按台风名生成的资讯入口,点击跳转查看最新报道</li>' : '';
-    box.innerHTML = hint + result.items.map(n => `
+      ? '<li class="news-hint">按台风名生成的资讯入口,点击查看详情</li>' : '';
+    box.innerHTML = hint + result.items.map((n, i) => `
       <li>
-        <a class="news-card" href="${n.url}" target="_blank" rel="noopener">
+        <div class="news-card" data-idx="${i}" data-url="${n.url.replace(/"/g, '&quot;')}">
           <span class="news-icon">${n.icon || '📰'}</span>
           <span class="news-body">
             <span class="news-title">${n.title}</span>
+            ${n.intro ? `<span class="news-intro">${n.intro}</span>` : ''}
             <span class="news-meta">${[n.source, n.time].filter(Boolean).join(' · ')}</span>
           </span>
           <span class="news-arrow">›</span>
-        </a>
+        </div>
+        <div class="news-detail" hidden>
+          <p class="news-detail-text">${n.intro || n.title}</p>
+          <div class="news-detail-meta">
+            <span>${[n.source, n.time].filter(Boolean).join(' · ')}</span>
+            <a class="news-action" href="${n.url}" target="_blank" rel="noopener">阅读全文 →</a>
+          </div>
+        </div>
       </li>`).join('');
+  }
+
+  function bindNewsClick() {
+    const list = $('newsList');
+    list.addEventListener('click', (e) => {
+      // 点击"阅读全文"链接时放行,不处理
+      if (e.target.closest('.news-action')) return;
+
+      const card = e.target.closest('.news-card');
+      if (!card) return;
+
+      // 收起其他已展开的卡片
+      const allCards = list.querySelectorAll('.news-card.expanded');
+      allCards.forEach(c => {
+        if (c !== card) {
+          c.classList.remove('expanded');
+          const otherDetail = c.parentElement.querySelector('.news-detail');
+          if (otherDetail) otherDetail.hidden = true;
+        }
+      });
+
+      // 切换当前卡片
+      const isExpanded = card.classList.toggle('expanded');
+      const detail = card.parentElement.querySelector('.news-detail');
+      if (detail) detail.hidden = !isExpanded;
+    });
   }
 
   function show(ty) {
@@ -196,9 +230,10 @@ const PANEL = (() => {
     bindGesture();
     bindStatClick();
     bindTabs();
+    bindNewsClick();
 
     // 第二道防线:面板刚完成收起/展开的瞬间(450ms 内),
-    // 拦截落在新闻链接上的点击,避免任何形式的误触跳转
+    // 拦截落在新闻列表上的点击,避免任何形式的误触跳转
     $('newsList').addEventListener('click', (e) => {
       if (Date.now() - stateChangedAt < 450) {
         e.preventDefault();
