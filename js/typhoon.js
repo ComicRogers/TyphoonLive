@@ -10,18 +10,18 @@
 
 const TYPHOON = (() => {
 
-  // 强度色标(与 style.css 中的 CSS 变量保持一致)
+  // 强度色标 — 去饱和版，贴合水墨留白美学
   const LEVEL = {
-    TD:      { color: '#30d54c', name: '热带低压', rank: 0 },
-    TS:      { color: '#2f7bff', name: '热带风暴', rank: 1 },
-    STS:     { color: '#f7d038', name: '强热带风暴', rank: 2 },
-    TY:      { color: '#ff9c33', name: '台风', rank: 3 },
-    STY:     { color: '#f450d8', name: '强台风', rank: 4 },
-    SuperTY: { color: '#ff3b30', name: '超强台风', rank: 5 },
+    TD:      { color: '#6DA87B', name: '热带低压', rank: 0 },
+    TS:      { color: '#5B8FBF', name: '热带风暴', rank: 1 },
+    STS:     { color: '#C4A83E', name: '强热带风暴', rank: 2 },
+    TY:      { color: '#D48C45', name: '台风', rank: 3 },
+    STY:     { color: '#B672A6', name: '强台风', rank: 4 },
+    SuperTY: { color: '#C4504A', name: '超强台风', rank: 5 },
   };
 
-  // 预报机构配色
-  const AGENCY_COLORS = ['#4fd8eb', '#b48bff', '#7dd87d', '#ff9c9c', '#e8d27d'];
+  // 预报机构配色 — 去饱和版
+  const AGENCY_COLORS = ['#4AA8B8', '#9B77D4', '#6BB86B', '#D47A7A', '#C4B85A'];
 
   // 参考城市(用于计算"参考位置")
   const REF_CITIES = [
@@ -226,23 +226,39 @@ const TYPHOON = (() => {
       ).addTo(layer);
     }
 
-    // 2) 路径点
+    // 2) 路径点 — 智能抽稀 + 双层呼吸感样式
     pts.forEach((p, i) => {
       bounds.extend([p.lat, p.lng]);
       const isLast = i === pts.length - 1;
       if (isLast) return; // 最新点用台风眼图标单独画
 
+      // 抽稀策略：间隔点 + 强度变化点 + 首点 三者必留
+      const levelChanged = i > 0 && p.level !== pts[i - 1].level;
+      const isEven = i % 2 === 0;
+      if (i !== 0 && !levelChanged && !isEven) return;
+
+      const idx = i; // capture for closure
+
+      // 外环 — 白色光晕，制造呼吸感
       L.circleMarker([p.lat, p.lng], {
-        radius: 4.5,
-        color: '#0a1420',
+        radius: 5.5,
+        color: 'transparent', weight: 0,
+        fillColor: 'rgba(255,255,255,0.45)',
+        fillOpacity: 1, interactive: false,
+      }).addTo(layer);
+
+      // 内核 — 强度色、半透明、极细边
+      L.circleMarker([p.lat, p.lng], {
+        radius: 4,
+        color: 'rgba(0,0,0,0.08)',
         weight: 1,
         fillColor: colorOf(p.level),
-        fillOpacity: 1,
+        fillOpacity: 0.82,
       })
         .bindTooltip(tipHTML(p), { className: 'ty-tip', direction: 'top', offset: [0, -6] })
         .on('click', () => {
           highlight(p.lat, p.lng);
-          onPointClick && onPointClick(p, i);
+          onPointClick && onPointClick(p, idx);
         })
         .addTo(layer);
     });
@@ -280,9 +296,16 @@ const TYPHOON = (() => {
 
       fc.points.forEach(fp => {
         bounds.extend([fp.lat, fp.lng]);
+
         L.circleMarker([fp.lat, fp.lng], {
-          radius: 4, color, weight: 1.5,
-          fillColor: '#0a1420', fillOpacity: 1,
+          radius: 5, color: 'transparent', weight: 0,
+          fillColor: 'rgba(255,255,255,0.4)',
+          fillOpacity: 1, interactive: false,
+        }).addTo(layer);
+
+        L.circleMarker([fp.lat, fp.lng], {
+          radius: 3.5, color, weight: 1,
+          fillColor: '#0a1420', fillOpacity: 0.82,
         })
           .bindTooltip(tipHTML(fp, `<b>${fc.agency}</b> 预报<br>`), { className: 'ty-tip', direction: 'top', offset: [0, -6] })
           .addTo(layer);

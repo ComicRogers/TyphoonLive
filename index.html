@@ -17,21 +17,26 @@
   <!-- 地图容器(全高,信息浮层内嵌其中) -->
   <div id="map">
     <div class="info-overlay" id="infoOverlay">
+      <button class="overlay-toggle" id="overlayToggle" aria-label="展开/收起" title="展开详情">
+        <span class="toggle-chevron">▸</span>
+      </button>
       <div class="typhoon-name-row">
         <span class="typhoon-name" id="tyName">—</span>
         <span class="intensity-tag" id="tyBadge">—</span>
       </div>
       <span class="typhoon-name-en" id="tyEnName"></span>
-      <div class="wind-speed-hero">
-        <span class="wind-speed-label">最大风速</span>
-        <div class="wind-speed-row">
-          <span class="wind-speed-num" id="stSpeed">—</span>
-          <span class="wind-speed-unit">m/s</span>
+      <div class="overlay-detail" id="overlayDetail">
+        <div class="wind-speed-hero">
+          <span class="wind-speed-label">最大风速</span>
+          <div class="wind-speed-row">
+            <span class="wind-speed-num" id="stSpeed">—</span>
+            <span class="wind-speed-unit">m/s</span>
+          </div>
         </div>
+        <div class="data-grid" id="dataGrid"></div>
+        <div class="wind-bars" id="windBars"></div>
+        <div class="obs-time" id="tyTime">—</div>
       </div>
-      <div class="data-grid" id="dataGrid"></div>
-      <div class="wind-bars" id="windBars"></div>
-      <div class="obs-time" id="tyTime">—</div>
     </div>
   </div>
 

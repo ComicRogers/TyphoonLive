@@ -248,7 +248,7 @@ body {
 /* ---------- 地图控制按钮 ---------- */
 .map-controls {
   position: fixed;
-  right: 12px; top: auto; bottom: 20%;
+  right: 12px; top: 60px;
   z-index: 910;
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -268,7 +268,7 @@ body {
 /* ---------- 图例 ---------- */
 .legend {
   position: fixed;
-  right: 56px; bottom: 20%;
+  right: 56px; top: 60px;
   z-index: 920;
   background: var(--glass-bg-heavy);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -295,7 +295,7 @@ body {
 /* ---------- 信息浮层 ---------- */
 .info-overlay {
   position: absolute;
-  bottom: 10%; left: 16px; right: 16px;
+  bottom: 1%; left: 16px; right: 16px;
   z-index: 900;
   pointer-events: none;
   transition: opacity .4s ease;
@@ -304,14 +304,60 @@ body {
   backdrop-filter: var(--glass-blur);
   border-radius: var(--radius);
   border: .5px solid var(--glass-border);
-  padding: 18px 20px;
+  padding: 16px 20px;
   box-shadow: var(--glass-shadow);
+  overflow: hidden;
 }
 .info-overlay.fading { opacity: 0; }
+
+/* ---- toggle button ---- */
+.overlay-toggle {
+  position: absolute;
+  top: 14px; right: 14px;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: .5px solid rgba(0,0,0,.08);
+  background: rgba(255,255,255,.6);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  transition: background .25s ease, transform .25s ease;
+  z-index: 2;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto;
+}
+.overlay-toggle:active { transform: scale(.92); }
+.toggle-chevron {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--c-ink3);
+  transition: transform .4s cubic-bezier(.4,0,.2,1);
+  line-height: 1;
+}
+.info-overlay.expanded .toggle-chevron {
+  transform: rotate(90deg);
+}
+
+/* ---- detail wrapper: animated collapse ---- */
+.overlay-detail {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height .45s cubic-bezier(.4,0,.2,1),
+              opacity .35s cubic-bezier(.4,0,.2,1),
+              margin-top .45s cubic-bezier(.4,0,.2,1);
+  margin-top: 0;
+}
+.info-overlay.expanded .overlay-detail {
+  max-height: 340px;
+  opacity: 1;
+  margin-top: 10px;
+}
 
 /* Name + Tag */
 .typhoon-name-row {
   display: flex; align-items: baseline; gap: 8px; margin-bottom: 0;
+  padding-right: 36px;
 }
 .typhoon-name {
   font-family: var(--font-serif);
@@ -320,8 +366,15 @@ body {
 }
 .typhoon-name-en {
   display: block; font-size: 12px; color: var(--c-ink4);
-  letter-spacing: .04em; margin-bottom: 10px;
+  letter-spacing: .04em;
+  padding-right: 36px;
+  transition: margin-bottom .45s cubic-bezier(.4,0,.2,1);
+  margin-bottom: 0;
 }
+.info-overlay.expanded .typhoon-name-en {
+  margin-bottom: 2px;
+}
+
 .intensity-tag {
   font-size: 12px; letter-spacing: .05em;
   display: inline-flex; align-items: center; gap: 5px;
@@ -330,6 +383,12 @@ body {
 .intensity-tag::before {
   content: ''; width: 6px; height: 6px; border-radius: 50%;
   background: currentColor; flex-shrink: 0;
+}
+
+/* ---- collapsed hint ---- */
+.info-overlay:not(.expanded) .typhoon-name-row {
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 /* Hero wind speed */
@@ -572,8 +631,8 @@ body {
   .typhoon-name-en { font-size: 13px; margin-bottom: 12px; }
   .wind-bar-track { max-width: 140px; }
 
-  .map-controls { right: 20px; }
-  .legend { right: 64px; max-width: 220px; }
+  .map-controls { right: 20px; top: 72px; }
+  .legend { right: 64px; top: 72px; max-width: 220px; }
   .ctl-btn:hover { background: rgba(255,255,255,.9); }
 
   .bottom-tabs .tab { font-size: 14px; }

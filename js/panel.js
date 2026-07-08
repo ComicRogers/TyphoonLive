@@ -162,6 +162,37 @@ const PANEL = (() => {
     });
   }
 
+  /* ---------- 展开/收起 ---------- */
+
+  function bindToggle() {
+    const overlay = $('infoOverlay');
+    const toggle = $('overlayToggle');
+    const nameRow = overlay.querySelector('.typhoon-name-row');
+
+    function expand() {
+      overlay.classList.add('expanded');
+      toggle.setAttribute('title', '收起详情');
+      toggle.setAttribute('aria-label', '收起详情');
+    }
+    function collapse() {
+      overlay.classList.remove('expanded');
+      toggle.setAttribute('title', '展开详情');
+      toggle.setAttribute('aria-label', '展开详情');
+    }
+
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      overlay.classList.contains('expanded') ? collapse() : expand();
+    });
+
+    nameRow.addEventListener('click', () => {
+      if (!overlay.classList.contains('expanded')) expand();
+    });
+
+    // 首屏默认展开
+    expand();
+  }
+
   /* ---------- 主入口 ---------- */
 
   function show(ty) {
@@ -174,6 +205,7 @@ const PANEL = (() => {
   function init() {
     bindTabs();
     bindNewsClick();
+    bindToggle();
   }
 
   return {
