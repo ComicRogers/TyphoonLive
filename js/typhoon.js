@@ -124,17 +124,36 @@ const TYPHOON = (() => {
   function currentCard(ty) {
     const p = ty.latest;
     const lvName = (LEVEL[p.level] || LEVEL.TD).name;
-    const row = (label, value) => `
-      <div class="pp-row"><label>${label}:</label><span>${value}</span></div>`;
+    const lvc = colorOf(p.level);
+
+    const en = ty.enName ? `<span class="pp-en">${ty.enName}</span>` : '';
 
     return `
       <div class="pp-card">
-        <div class="pp-title">【${ty.name}】 ${fmtCardTime(p.time)}</div>
-        ${row('中心位置', `东经${p.lng.toFixed(1)}° 北纬${p.lat.toFixed(1)}°`)}
-        ${row('风速风力', `${p.speed ?? '—'}米/秒,${p.power ?? '—'}级(${lvName})`)}
-        ${row('中心气压', `${p.pressure ?? '—'}百帕`)}
-        ${row('参考位置', refPosition(p))}
-        ${row('未来趋势', futureTrend(ty))}
+        <div class="pp-signal">
+          <span class="pp-dot" style="background:${lvc}"></span>
+          <span class="pp-lv">${lvName}</span>
+        </div>
+        <div class="pp-body">
+          <h2 class="pp-name">${ty.name}</h2>
+          ${en}
+          <div class="pp-speed">
+            <span class="pp-speed-num">${p.speed ?? '—'}</span>
+            <span class="pp-speed-unit">m/s</span>
+          </div>
+          <div class="pp-power">${p.power ?? '—'} 级 · ${p.pressure ?? '—'} hPa</div>
+        </div>
+        <div class="pp-pos">
+          <span>${p.lng.toFixed(1)}&deg;E</span>
+          <span class="pp-pos-sep">&middot;</span>
+          <span>${p.lat.toFixed(1)}&deg;N</span>
+          <span class="pp-pos-sep">&middot;</span>
+          <span>${fmtCardTime(p.time)}</span>
+        </div>
+        <div class="pp-rule"><span></span></div>
+        <div class="pp-context">
+          <p class="pp-ref">${refPosition(p)}</p>
+        </div>
       </div>`;
   }
 
@@ -238,10 +257,10 @@ const TYPHOON = (() => {
       L.marker([cur.lat, cur.lng], { icon: eyeIcon(colorOf(cur.level)), zIndexOffset: 500 })
         .bindPopup(currentCard(ty), {
           className: 'ty-popup',
-          maxWidth: 300,
-          minWidth: 250,
-          autoPanPaddingTopLeft: [20, 120],
-          autoPanPaddingBottomRight: [20, 160],
+          maxWidth: 260,
+          minWidth: 220,
+          autoPanPaddingTopLeft: [20, 160],
+          autoPanPaddingBottomRight: [180, 20],
           closeButton: true,
         })
         .on('click', () => onPointClick && onPointClick(cur, pts.length - 1))

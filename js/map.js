@@ -3,8 +3,8 @@
  *
  * 底图策略(优先级从高到低):
  *   1. 配置了天地图 key(TIANDITU_KEY)→ 天地图矢量 + 中文注记;
- *   2. 默认:高德中文底图(免 key),叠加 CSS 深色滤镜
- *      (.tile-dark,见 style.css)融入整体暗色风格;
+ *   2. 默认:高德中文底图(免 key),叠加 CSS 去饱和滤镜
+ *      (.tile-subdued,见 style.css)融入整体留白风格;
  *   3. 备选:GeoQ 深蓝中文底图(原生暗色,但服务偶有不稳),
  *      需要时将 CHINESE_BASE 改为 'geoq'。
  *
@@ -48,10 +48,10 @@ const MAP = (() => {
       )];
     }
 
-    // 高德中文底图 + CSS 深色滤镜(className 见 style.css 的 .tile-dark)
+    // 高德中文底图 + 去饱和滤镜(className 见 style.css 的 .tile-subdued)
     return [L.tileLayer(
       'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
-      { subdomains: '1234', maxZoom: 18, className: 'tile-dark', attribution: '© 高德地图' }
+      { subdomains: '1234', maxZoom: 18, className: 'tile-subdued', attribution: '© 高德地图' }
     )];
   }
 
@@ -76,8 +76,9 @@ const MAP = (() => {
 
   function init() {
     map = L.map('map', {
-      center: [22, 128],           // 西北太平洋台风活跃区
-      zoom: window.innerWidth < 768 ? 4 : 5,
+      center: [23, 122],           // 台湾周边,台风核心关注区
+      zoom: window.innerWidth < 768 ? 5 : 6,
+      minZoom: 3,
       zoomControl: false,
       attributionControl: true,
       worldCopyJump: true,
@@ -92,8 +93,8 @@ const MAP = (() => {
     if (!bounds || !bounds.isValid()) return;
     const mobile = window.innerWidth < 768;
     map.fitBounds(bounds, {
-      paddingTopLeft: [30, mobile ? 110 : 80],
-      paddingBottomRight: [30, mobile ? 200 : 60],
+      paddingTopLeft: [mobile ? 80 : 60, mobile ? 140 : 200],
+      paddingBottomRight: [mobile ? 180 : 80, 60],
       maxZoom: 7,
     });
   }

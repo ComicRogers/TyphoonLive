@@ -1,59 +1,80 @@
 /* ============================================================
- * switcher.js — 多台风切换组件(顶部横滑 chips)
+ * switcher.js — 多台风切换组件(顶部文字链接)
  *
- *   · 活跃台风排在前面并带强度色点
- *   · 点击 chip 触发 onSelect 回调加载对应台风
+ *   每个台风标签左侧有强度色圆点,激活时填实。
+ *   活跃台风排在前面并带强度色点。
+ *   点击触发 onSelect 回调加载对应台风。
  * ============================================================ */
 
 const SWITCHER = (() => {
 
   let container = null;
-  let onSelect = null; // (tfbh) => void,由 app.js 注入
+  let onSelect = null;
   let activeId = null;
 
   function render(list, typhoonLevels = {}) {
     container.innerHTML = '';
 
     if (!list.length) {
-      const empty = document.createElement('span');
-      empty.className = 'chip';
-      empty.style.pointerEvents = 'none';
-      empty.textContent = '当前无编号台风';
-      container.appendChild(empty);
+      const span = document.createElement('span');
+      span.style.cssText = 'font-size:13px;color:var(--c-ink4);pointer-events:none;';
+      span.textContent = '当前无编号台风';
+      container.appendChild(span);
       return;
     }
 
-    // 活跃台风优先
     const sorted = [...list].sort((a, b) => (b.isActive - a.isActive));
 
-    sorted.forEach(t => {
-      const chip = document.createElement('button');
-      chip.className = 'chip' + (t.id === activeId ? ' active' : '');
-      chip.dataset.id = t.id;
+    sorted.forEach((t, i) => {
+      const btn = document.createElement('button');
+      if (t.id === activeId) btn.classList.add('active');
+      btn.dataset.id = t.id;
 
-      const lvColor = typhoonLevels[t.id] || (t.isActive ? '#4fd8eb' : 'rgba(125,147,168,.6)');
-      chip.innerHTML = `<span class="dot" style="--lv-color:${lvColor}"></span>
-        ${t.name}<small style="color:var(--text-dim);margin-left:2px">${t.id}</small>`;
+      const lvColor = typhoonLevels[t.id] || (t.isActive ? 'rgba(0,0,0,.4)' : 'var(--c-ink4)');
 
-      chip.addEventListener('click', () => {
+      const dot = document.createElement('span');
+      dot.className = 'switcher-dot';
+      dot.style.color = lvColor;
+      btn.appendChild(dot);
+      btn.appendChild(document.createTextNode(t.name));
+
+      btn.addEventListener('click', () => {
         if (t.id === activeId) return;
         setActive(t.id);
-        onSelect && onSelect(t.id);
+        if (onSelect) onSelect(t.id);
       });
-      container.appendChild(chip);
+
+      container.appendChild(btn);
+
+      // 分隔符
+      if (i < sorted.length - 1) {
+        const sep = document.createElement('span');
+        sep.className = 'sep';
+        sep.textContent = '·';
+        container.appendChild(sep);
+      }
     });
   }
 
   function setActive(id) {
     activeId = id;
-    container.querySelectorAll('.chip').forEach(c =>
-      c.classList.toggle('active', c.dataset.id === id));
+    container.querySelectorAll('button').forEach(btn => {
+      const isActive = btn.dataset.id === id;
+      btn.classList.toggle('active', isActive);
+      const dot = btn.querySelector('.switcher-dot');
+      if (dot && isActive) dot.style.backgroundColor = dot.style.color;
+      else if (dot) dot.style.backgroundColor = 'transparent';
+    });
   }
 
-  // 台风数据加载完后,用其最新强度更新 chip 色点
   function updateLevel(id, color) {
-    const dot = container.querySelector(`.chip[data-id="${id}"] .dot`);
-    if (dot) dot.style.setProperty('--lv-color', color);
+    const btn = container.querySelector('button[data-id="' + id + '"]');
+    if (!btn) return;
+    const dot = btn.querySelector('.switcher-dot');
+    if (dot) {
+      dot.style.color = color;
+      if (btn.classList.contains('active')) dot.style.backgroundColor = color;
+    }
   }
 
   function init() {

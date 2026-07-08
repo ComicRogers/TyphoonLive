@@ -28,7 +28,7 @@
   function setStatus(text, cls = '') {
     const s = $('dataStatus');
     s.textContent = text;
-    s.className = 'topbar-status ' + cls;
+    s.className = 'site-status ' + cls;
   }
 
   /* ---------- 图例 ---------- */

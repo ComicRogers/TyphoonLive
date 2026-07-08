@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>台风路径 — Swiss Editorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,700;8..60,800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #FAF9F7;
+  --card: #FFFFFF;
+  --text: #1A1D20;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --border: #E5E7EB;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.06);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-serif: "Source Serif 4", "Noto Serif SC", "STSong", Georgia, serif;
+  --transition: 300ms ease;
+
+  --color-TD: #30C55A;
+  --color-TS: #3B82F6;
+  --color-STS: #F7C948;
+  --color-TY: #F59E0B;
+  --color-STY: #EC4899;
+  --color-SuperTY: #EF4444;
+
+  --map-bg1: #0d2050;
+  --map-bg2: #1a3a6e;
+}
+
+html { font-size: 16px; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.app {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ───── HEADER ───── */
+.header {
+  padding: 20px 20px 0;
+  flex-shrink: 0;
+}
+.header-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  margin-bottom: 16px;
+}
+.typhoon-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 4px;
+}
+.typhoon-chips::-webkit-scrollbar { display: none; }
+.typhoon-chip {
+  flex-shrink: 0;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.typhoon-chip:hover { border-color: #CBD5E1; color: var(--text); }
+.typhoon-chip.active {
+  border-color: transparent;
+  color: #FFFFFF;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ───── MAP AREA ───── */
+.map-container {
+  flex-shrink: 0;
+  height: 55vh;
+  max-height: 464px;
+  margin: 12px 8px 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+  background: linear-gradient(180deg, var(--map-bg1) 0%, var(--map-bg2) 100%);
+}
+.map-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.map-label {
+  position: absolute;
+  color: rgba(255,255,255,0.25);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  font-family: var(--font-sans);
+}
+.map-label-n { top: 10px; right: 12px; }
+.map-label-s { bottom: 10px; left: 12px; }
+.map-label-e { right: 10px; top: 50%; transform: translateY(-50%); }
+.map-label-w { left: 10px; top: 50%; transform: translateY(-50%); }
+
+.city-dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  box-shadow: 0 0 4px rgba(255,255,255,0.2);
+}
+.city-dot::after {
+  content: attr(data-name);
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 8px;
+  color: rgba(255,255,255,0.4);
+  white-space: nowrap;
+}
+.city-dot.c1 { top: 18%; left: 20%; }
+.city-dot.c2 { top: 28%; left: 35%; }
+.city-dot.c3 { top: 35%; left: 55%; }
+.city-dot.c4 { top: 42%; left: 18%; }
+.city-dot.c5 { top: 50%; left: 72%; }
+.city-dot.c6 { top: 60%; left: 30%; }
+.city-dot.c7 { top: 68%; left: 50%; }
+
+.typhoon-eye {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  z-index: 3;
+  transition: background var(--transition);
+}
+.typhoon-eye::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.3;
+  animation: eyePulse 3s ease-in-out infinite;
+}
+@keyframes eyePulse {
+  0%, 100% { transform: scale(1); opacity: 0.25; }
+  50% { transform: scale(1.6); opacity: 0.08; }
+}
+
+.wind-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px dashed;
+  pointer-events: none;
+  z-index: 1;
+  transition: all var(--transition);
+}
+.wind-circle.outer { opacity: 0.2; }
+.wind-circle.inner { opacity: 0.3; border-style: dashed; }
+.wind-circle-label {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+  white-space: nowrap;
+  font-family: var(--font-sans);
+}
+
+.direction-arrow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 4;
+  transition: all var(--transition);
+}
+.direction-arrow::before {
+  content: '';
+  display: block;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 14px solid rgba(255,255,255,0.8);
+}
+.direction-arrow::after {
+  content: attr(data-dir);
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: rgba(255,255,255,0.6);
+  white-space: nowrap;
+  font-family: var(--font-sans);
+}
+
+/* ───── INFO CARD ───── */
+.info-card {
+  flex: 1;
+  background: var(--card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  margin: -8px 0 0;
+  padding: 28px 24px 32px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: all var(--transition);
+}
+
+/* Typhoon name row */
+.name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.name-cn {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.04em;
+}
+.name-en {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+.name-code {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+/* Intensity badge */
+.intensity-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #FFFFFF;
+  width: fit-content;
+  transition: background var(--transition);
+}
+
+/* HERO wind speed */
+.hero-section {
+  padding: 8px 0 4px;
+}
+.hero-wind {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+.hero-number {
+  font-family: var(--font-serif);
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+  transition: color var(--transition);
+}
+.hero-unit {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding-bottom: 10px;
+}
+.hero-level {
+  font-size: 15px;
+  color: var(--text-secondary);
+  padding-bottom: 12px;
+  margin-left: 4px;
+}
+.hero-divider {
+  width: 1px;
+  height: 48px;
+  background: var(--border);
+  align-self: flex-end;
+  margin: 0 8px 10px;
+}
+.hero-category {
+  font-size: 14px;
+  font-weight: 600;
+  padding-bottom: 10px;
+  align-self: flex-end;
+  transition: color var(--transition);
+}
+
+/* Secondary data grid 2×2 */
+.data-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.data-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.data-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.03em;
+}
+.data-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Wind circle bars */
+.wind-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.wind-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.wind-bar-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  width: 64px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.wind-bar-track {
+  flex: 1;
+  height: 6px;
+  background: #F3F4F6;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.wind-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width var(--transition), background var(--transition);
+}
+.wind-bar-value {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  width: 52px;
+  flex-shrink: 0;
+}
+
+/* Divider */
+.section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* Expand toggle */
+.expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  cursor: pointer;
+  user-select: none;
+}
+.expand-toggle-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.expand-toggle-arrow {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition);
+}
+.expand-toggle-arrow.open { transform: rotate(180deg); }
+.expand-toggle-arrow svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--text-secondary);
+  stroke-width: 2;
+  fill: none;
+}
+
+/* Expanded section */
+.expanded-section {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+}
+.expanded-section.open { display: flex; }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+.tab {
+  flex: 1;
+  padding: 10px 0;
+  font-size: 14px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition);
+  user-select: none;
+}
+.tab.active {
+  color: var(--text);
+  font-weight: 600;
+  border-bottom-color: var(--text);
+}
+
+/* Tab content */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.history-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #F3F4F6;
+  font-size: 13px;
+}
+.history-time { color: var(--text-secondary); }
+.history-data { color: var(--text); font-weight: 500; }
+
+.news-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.news-item {
+  font-size: 14px;
+  color: var(--text);
+  padding: 12px 0;
+  border-bottom: 1px solid #F3F4F6;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+.news-item:hover { color: var(--text-secondary); }
+.news-date {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+/* ───── RESPONSIVE ───── */
+@media (min-width: 768px) {
+  .app {
+    max-width: 800px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 32px;
+    gap: 20px;
+  }
+  .header {
+    width: 100%;
+    padding: 0;
+  }
+  .map-container {
+    width: 100%;
+    height: 400px;
+    margin: 0;
+    max-height: none;
+  }
+  .info-card {
+    margin: 0;
+    border-radius: var(--radius-lg);
+    width: 100%;
+    flex: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app {
+    max-width: 1040px;
+    align-items: flex-start;
+  }
+  .map-container {
+    width: calc(55% - 10px);
+    height: 520px;
+  }
+  .info-card {
+    width: calc(45% - 10px);
+    border-radius: var(--radius-lg);
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <h1 class="header-title">台风路径</h1>
+    <div class="typhoon-chips" id="typhoonChips">
+      <button class="typhoon-chip active" data-index="0">杜苏芮</button>
+      <button class="typhoon-chip" data-index="1">卡努</button>
+      <button class="typhoon-chip" data-index="2">兰恩</button>
+    </div>
+  </header>
+
+  <!-- MAP AREA -->
+  <div class="map-container" id="mapContainer">
+    <div class="map-grid"></div>
+    <div class="map-label map-label-n">N</div>
+    <div class="map-label map-label-s">S</div>
+    <div class="map-label map-label-e">E</div>
+    <div class="map-label map-label-w">W</div>
+    <div class="city-dot c1" data-name="台北"></div>
+    <div class="city-dot c2" data-name="福州"></div>
+    <div class="city-dot c3" data-name="冲绳"></div>
+    <div class="city-dot c4" data-name="广州"></div>
+    <div class="city-dot c5" data-name="马尼拉"></div>
+    <div class="city-dot c6" data-name="海口"></div>
+    <div class="city-dot c7" data-name="关岛"></div>
+    <div class="typhoon-eye" id="typhoonEye"></div>
+    <div class="wind-circle outer" id="windCircleOuter" style="width:180px; height:180px;">
+      <span class="wind-circle-label" id="windCircleLabelOuter">七级风圈 360km</span>
+    </div>
+    <div class="wind-circle inner" id="windCircleInner" style="width:90px; height:90px;">
+      <span class="wind-circle-label" id="windCircleLabelInner">十级风圈 140km</span>
+    </div>
+    <div class="direction-arrow" id="directionArrow" data-dir="西北" style="transform: translate(32px, -38px) rotate(-45deg);"></div>
+  </div>
+
+  <!-- INFO CARD -->
+  <div class="info-card" id="infoCard">
+    <!-- Name row -->
+    <div class="name-row">
+      <span class="name-cn" id="nameCn">杜苏芮</span>
+      <span class="name-en" id="nameEn">Doksuri</span>
+      <span class="name-code" id="nameCode">2305</span>
+    </div>
+
+    <!-- Intensity badge -->
+    <div>
+      <span class="intensity-badge" id="intensityBadge">超强台风 SuperTY</span>
+    </div>
+
+    <!-- Hero wind speed -->
+    <div class="hero-section">
+      <div class="hero-wind">
+        <span class="hero-number" id="heroNumber">62</span>
+        <span class="hero-unit">m/s</span>
+        <span class="hero-level" id="heroLevel">17级以上</span>
+        <span class="hero-divider"></span>
+        <span class="hero-category" id="heroCategory">SuperTY</span>
+      </div>
+    </div>
+
+    <!-- Data grid 2x2 -->
+    <div class="data-grid">
+      <div class="data-item">
+        <span class="data-label">中心气压</span>
+        <span class="data-value" id="dataPressure">915 hPa</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">移动方向 · 速度</span>
+        <span class="data-value" id="dataMove">西北 15 km/h</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">中心位置</span>
+        <span class="data-value" id="dataPosition">22.5°N, 125.6°E</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">观测时间</span>
+        <span class="data-value" id="dataTime">2026-07-08 14:00 CST</span>
+      </div>
+    </div>
+
+    <!-- Wind circle bars -->
+    <div class="wind-bars">
+      <div class="wind-bar-row">
+        <span class="wind-bar-label">七级风圈</span>
+        <div class="wind-bar-track">
+          <div class="wind-bar-fill" id="windBar7" style="width:72%;"></div>
+        </div>
+        <span class="wind-bar-value" id="windBar7Val">360 km</span>
+      </div>
+      <div class="wind-bar-row">
+        <span class="wind-bar-label">十级风圈</span>
+        <div class="wind-bar-track">
+          <div class="wind-bar-fill" id="windBar10" style="width:28%;"></div>
+        </div>
+        <span class="wind-bar-value" id="windBar10Val">140 km</span>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="section-divider"></div>
+
+    <!-- Expand toggle -->
+    <div class="expand-toggle" id="expandToggle">
+      <span class="expand-toggle-label">详情</span>
+      <span class="expand-toggle-arrow" id="expandArrow">
+        <svg viewBox="0 0 20 20"><polyline points="4,8 10,14 16,8"/></svg>
+      </span>
+    </div>
+
+    <!-- Expanded section -->
+    <div class="expanded-section" id="expandedSection">
+      <div class="tabs">
+        <div class="tab active" data-tab="history">历史路径</div>
+        <div class="tab" data-tab="news">相关资讯</div>
+      </div>
+      <div class="tab-content active" id="tabHistory">
+        <ul class="history-list" id="historyList"></ul>
+      </div>
+      <div class="tab-content" id="tabNews">
+        <div class="news-list" id="newsList"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const typhoonData = [
+  {
+    nameCn: '杜苏芮', nameEn: 'Doksuri', code: '2305',
+    intensity: 'SuperTY', intensityLabel: '超强台风 SuperTY', wind: 62, level: '17级以上',
+    pressure: '915 hPa', move: '西北 15 km/h', position: '22.5°N, 125.6°E',
+    time: '2026-07-08 14:00 CST',
+    windCircle7: 360, windCircle10: 140,
+    direction: '西北', dirDegree: -45,
+    history: [
+      { time: '07-08 14:00', pos: '22.5°N 125.6°E', wind: '62 m/s', pressure: '915 hPa' },
+      { time: '07-08 08:00', pos: '20.8°N 126.3°E', wind: '58 m/s', pressure: '925 hPa' },
+      { time: '07-08 02:00', pos: '19.2°N 127.1°E', wind: '55 m/s', pressure: '935 hPa' },
+      { time: '07-07 20:00', pos: '17.5°N 128.0°E', wind: '50 m/s', pressure: '945 hPa' },
+      { time: '07-07 14:00', pos: '16.1°N 128.8°E', wind: '45 m/s', pressure: '955 hPa' },
+    ],
+    news: [
+      { title: '超强台风"杜苏芮"逼近菲律宾北部沿海', date: '2026-07-08' },
+      { title: '中央气象台发布台风红色预警', date: '2026-07-08' },
+      { title: '福建、浙江沿海启动防台风应急响应', date: '2026-07-07' },
+      { title: '"杜苏芮"持续增强 已达超强台风级', date: '2026-07-07' },
+    ]
+  },
+  {
+    nameCn: '卡努', nameEn: 'Khanun', code: '2306',
+    intensity: 'TY', intensityLabel: '台风 TY', wind: 40, level: '13级',
+    pressure: '955 hPa', move: '西北偏西 20 km/h', position: '26.1°N, 131.8°E',
+    time: '2026-07-08 14:00 CST',
+    windCircle7: 280, windCircle10: 100,
+    direction: '西北偏西', dirDegree: -60,
+    history: [
+      { time: '07-08 14:00', pos: '26.1°N 131.8°E', wind: '40 m/s', pressure: '955 hPa' },
+      { time: '07-08 08:00', pos: '25.4°N 132.5°E', wind: '38 m/s', pressure: '960 hPa' },
+      { time: '07-08 02:00', pos: '24.7°N 133.3°E', wind: '35 m/s', pressure: '968 hPa' },
+      { time: '07-07 20:00', pos: '24.0°N 134.0°E', wind: '33 m/s', pressure: '975 hPa' },
+    ],
+    news: [
+      { title: '台风"卡努"向西北方向移动', date: '2026-07-08' },
+      { title: '"卡努"可能影响日本琉球群岛', date: '2026-07-08' },
+      { title: '第6号台风"卡努"在菲律宾以东生成', date: '2026-07-07' },
+    ]
+  },
+  {
+    nameCn: '兰恩', nameEn: 'Lan', code: '2307',
+    intensity: 'TS', intensityLabel: '热带风暴 TS', wind: 23, level: '9级',
+    pressure: '990 hPa', move: '东北 10 km/h', position: '15.3°N, 148.2°E',
+    time: '2026-07-08 14:00 CST',
+    windCircle7: 150, windCircle10: 0,
+    direction: '东北', dirDegree: 45,
+    history: [
+      { time: '07-08 14:00', pos: '15.3°N 148.2°E', wind: '23 m/s', pressure: '990 hPa' },
+      { time: '07-08 08:00', pos: '14.8°N 147.5°E', wind: '20 m/s', pressure: '995 hPa' },
+      { time: '07-08 02:00', pos: '14.2°N 146.9°E', wind: '18 m/s', pressure: '998 hPa' },
+    ],
+    news: [
+      { title: '热带风暴"兰恩"在西北太平洋生成', date: '2026-07-08' },
+      { title: '"兰恩"向东北方向移动 强度缓慢加强', date: '2026-07-08' },
+    ]
+  }
+];
+
+const intensityColorMap = {
+  TD: '#30C55A',
+  TS: '#3B82F6',
+  STS: '#F7C948',
+  TY: '#F59E0B',
+  STY: '#EC4899',
+  SuperTY: '#EF4444'
+};
+
+let activeIndex = 0;
+let isExpanded = false;
+let activeTab = 'history';
+
+// DOM refs
+const chips = document.querySelectorAll('.typhoon-chip');
+const typhoonEye = document.getElementById('typhoonEye');
+const windCircleOuter = document.getElementById('windCircleOuter');
+const windCircleInner = document.getElementById('windCircleInner');
+const windCircleLabelOuter = document.getElementById('windCircleLabelOuter');
+const windCircleLabelInner = document.getElementById('windCircleLabelInner');
+const directionArrow = document.getElementById('directionArrow');
+const expandToggle = document.getElementById('expandToggle');
+const expandedSection = document.getElementById('expandedSection');
+const expandArrow = document.getElementById('expandArrow');
+const tabBtns = document.querySelectorAll('.tab');
+
+function updateUI(index) {
+  const d = typhoonData[index];
+  const color = intensityColorMap[d.intensity];
+
+  // Name, badge
+  document.getElementById('nameCn').textContent = d.nameCn;
+  document.getElementById('nameEn').textContent = d.nameEn;
+  document.getElementById('nameCode').textContent = d.code;
+  document.getElementById('intensityBadge').textContent = d.intensityLabel;
+  document.getElementById('intensityBadge').style.background = color;
+
+  // Hero numbers
+  document.getElementById('heroNumber').textContent = d.wind;
+  document.getElementById('heroNumber').style.color = color;
+  document.getElementById('heroLevel').textContent = d.level;
+  document.getElementById('heroCategory').textContent = d.intensity;
+  document.getElementById('heroCategory').style.color = color;
+
+  // Data grid
+  document.getElementById('dataPressure').textContent = d.pressure;
+  document.getElementById('dataMove').textContent = d.move;
+  document.getElementById('dataPosition').textContent = d.position;
+  document.getElementById('dataTime').textContent = d.time;
+
+  // Wind bars
+  const bar7 = document.getElementById('windBar7');
+  const bar10 = document.getElementById('windBar10');
+  const maxCircle = 500;
+  bar7.style.width = Math.min((d.windCircle7 / maxCircle) * 100, 100) + '%';
+  bar7.style.background = color;
+  bar10.style.width = Math.min((d.windCircle10 / maxCircle) * 100, 100) + '%';
+  bar10.style.background = color;
+  document.getElementById('windBar7Val').textContent = d.windCircle7 + ' km';
+  document.getElementById('windBar10Val').textContent = d.windCircle10 > 0 ? d.windCircle10 + ' km' : '无';
+
+  // Map eye
+  typhoonEye.style.background = color;
+
+  // Wind circles on map
+  windCircleOuter.style.borderColor = color;
+  windCircleOuter.style.width = Math.min((d.windCircle7 / 360) * 260, 260) + 'px';
+  windCircleOuter.style.height = Math.min((d.windCircle7 / 360) * 260, 260) + 'px';
+  windCircleLabelOuter.textContent = '七级风圈 ' + d.windCircle7 + 'km';
+
+  if (d.windCircle10 > 0) {
+    windCircleInner.style.display = 'block';
+    windCircleInner.style.borderColor = color;
+    windCircleInner.style.width = Math.min((d.windCircle10 / 140) * 140, 140) + 'px';
+    windCircleInner.style.height = Math.min((d.windCircle10 / 140) * 140, 140) + 'px';
+    windCircleLabelInner.textContent = '十级风圈 ' + d.windCircle10 + 'km';
+  } else {
+    windCircleInner.style.display = 'none';
+  }
+
+  // Direction arrow
+  directionArrow.dataset.dir = d.direction;
+  directionArrow.style.transform = 'translate(' + (Math.cos((d.dirDegree - 90) * Math.PI / 180) * 28) + 'px, ' + (Math.sin((d.dirDegree - 90) * Math.PI / 180) * 32) + 'px) rotate(' + d.dirDegree + 'deg)';
+
+  // History list
+  const historyList = document.getElementById('historyList');
+  historyList.innerHTML = d.history.map(h =>
+    '<li class="history-item"><span class="history-time">' + h.time + '</span><span class="history-data">' + h.pos + '</span></li>'
+  ).join('');
+
+  // News list
+  const newsList = document.getElementById('newsList');
+  newsList.innerHTML = d.news.map(n =>
+    '<div class="news-item"><div>' + n.title + '</div><div class="news-date">' + n.date + '</div></div>'
+  ).join('');
+
+  // Tab state
+  switchTab(activeTab);
+}
+
+function switchTab(tabName) {
+  activeTab = tabName;
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab' + (tabName === 'history' ? 'History' : 'News')).classList.add('active');
+  document.querySelector('.tab[data-tab="' + tabName + '"]').classList.add('active');
+}
+
+// Chip clicks
+chips.forEach(chip => {
+  chip.addEventListener('click', function() {
+    activeIndex = parseInt(this.dataset.index);
+    chips.forEach(c => c.classList.remove('active'));
+    this.classList.add('active');
+    updateUI(activeIndex);
+  });
+});
+
+// Style chips
+function styleChips() {
+  chips.forEach((chip, i) => {
+    const color = intensityColorMap[typhoonData[i].intensity];
+    if (i === activeIndex) {
+      chip.style.background = color;
+      chip.style.color = '#FFFFFF';
+      chip.style.borderColor = 'transparent';
+    } else {
+      chip.style.background = '#FFFFFF';
+      chip.style.color = '#6B7280';
+      chip.style.borderColor = '#E5E7EB';
+    }
+  });
+}
+
+// Override chip click handler to also style chips
+chips.forEach(chip => {
+  const origClick = chip.onclick;
+  chip.addEventListener('click', function() {
+    chips.forEach((c, i) => {
+      const color = intensityColorMap[typhoonData[i].intensity];
+      if (i === activeIndex) {
+        c.style.background = color;
+        c.style.color = '#FFFFFF';
+        c.style.borderColor = 'transparent';
+      } else {
+        c.style.background = '#FFFFFF';
+        c.style.color = '#6B7280';
+        c.style.borderColor = '#E5E7EB';
+      }
+    });
+  });
+});
+
+// Expand toggle
+expandToggle.addEventListener('click', function() {
+  isExpanded = !isExpanded;
+  if (isExpanded) {
+    expandedSection.classList.add('open');
+    expandArrow.classList.add('open');
+  } else {
+    expandedSection.classList.remove('open');
+    expandArrow.classList.remove('open');
+  }
+});
+
+// Tab clicks
+tabBtns.forEach(tab => {
+  tab.addEventListener('click', function() {
+    switchTab(this.dataset.tab);
+  });
+});
+
+// Init
+styleChips();
+updateUI(0);
+</script>
+
+</body>
+</html>

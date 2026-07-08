@@ -1,0 +1,700 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>台风路径</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --c-td: #30C55A;
+  --c-ts: #3B82F6;
+  --c-sts: #F7C948;
+  --c-ty: #F59E0B;
+  --c-sty: #EC4899;
+  --c-super: #EF4444;
+  --c-ink: #1A1A1A;
+  --c-ink2: #595959;
+  --c-ink3: #8C8C8C;
+  --c-ink4: #B5B5B5;
+  --c-bg: #F5F2ED;
+  --c-bg2: #EBE5DF;
+}
+
+html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+body {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: #FFFFFF;
+  color: var(--c-ink);
+  min-height: 100vh;
+  min-height: 100dvh;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  animation: pageIn 1s ease;
+  overflow-x: hidden;
+}
+
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ============ HEADER ============ */
+.site-header {
+  padding: 18px 32px 12px;
+}
+
+.site-title {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--c-ink3);
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.typhoon-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  list-style: none;
+}
+
+.typhoon-switcher li {
+  display: flex;
+  align-items: center;
+}
+
+.typhoon-switcher .sep {
+  font-size: 12px;
+  color: var(--c-ink4);
+  margin: 0 10px;
+  user-select: none;
+}
+
+.typhoon-switcher button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  font-size: 15px;
+  font-family: "PingFang SC", "Hiragino Sans GB", sans-serif;
+  letter-spacing: 0.03em;
+  color: var(--c-ink3);
+  cursor: pointer;
+  padding: 2px 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.35s, border-color 0.35s;
+  line-height: 1.4;
+}
+
+.typhoon-switcher button:hover { color: var(--c-ink2); }
+
+.typhoon-switcher button.active {
+  color: var(--c-ink);
+  font-weight: 600;
+  border-bottom-color: currentColor;
+}
+
+.switcher-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1.5px solid currentColor;
+  transition: background-color 0.35s, border-color 0.35s;
+}
+
+.typhoon-switcher button.active .switcher-dot {
+  background-color: currentColor;
+  border-color: currentColor;
+}
+
+/* ============ MAP AREA ============ */
+.map-area {
+  position: relative;
+  width: 100%;
+  height: 79vh;
+  height: 79dvh;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--c-bg2) 0%, var(--c-bg) 45%, #FFFFFF 100%);
+}
+
+.map-bg { position: absolute; inset: 0; pointer-events: none; }
+
+.cloud { position: absolute; border-radius: 50%; filter: blur(30px); pointer-events: none; }
+
+.cloud-1 { width: 320px; height: 220px; background: radial-gradient(ellipse at 35% 40%, rgba(180,170,155,0.2) 0%, transparent 70%); top: 8%; left: -8%; transform: rotate(-12deg); }
+.cloud-2 { width: 260px; height: 180px; background: radial-gradient(ellipse at 50% 30%, rgba(190,178,160,0.16) 0%, transparent 70%); top: 18%; right: -5%; transform: rotate(8deg); }
+.cloud-3 { width: 350px; height: 200px; background: radial-gradient(ellipse at 40% 50%, rgba(200,190,175,0.12) 0%, transparent 72%); top: 40%; left: 20%; transform: rotate(-5deg); }
+.cloud-4 { width: 280px; height: 240px; background: radial-gradient(ellipse at 55% 45%, rgba(175,165,148,0.14) 0%, transparent 68%); bottom: 25%; right: 10%; transform: rotate(15deg); }
+.cloud-5 { width: 300px; height: 190px; background: radial-gradient(ellipse at 45% 35%, rgba(185,175,158,0.1) 0%, transparent 70%); top: 55%; left: 35%; transform: rotate(-3deg); }
+
+.map-fade {
+  position: absolute; inset: auto 0 0 0; height: 20%;
+  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.92) 100%);
+  pointer-events: none; z-index: 2;
+}
+
+/* Compass */
+.compass {
+  position: absolute; font-size: 9px; color: rgba(0,0,0,0.1);
+  font-family: "PingFang SC", "Hiragino Sans GB", sans-serif;
+  letter-spacing: 0.08em; pointer-events: none; z-index: 1;
+}
+.compass-n { top: 14px; left: 50%; transform: translateX(-50%); }
+.compass-s { bottom: 22%; left: 50%; transform: translateX(-50%); }
+.compass-e { top: 48%; right: 18px; transform: translateY(-50%); }
+.compass-w { top: 48%; left: 18px; transform: translateY(-50%); }
+
+/* Typhoon marker */
+.typhoon-marker {
+  position: absolute; z-index: 3;
+  transition: left 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), top 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.typhoon-dot {
+  width: 14px; height: 14px; border-radius: 50%; position: absolute;
+  transform: translate(-50%, -50%); transition: background-color 0.5s ease;
+}
+.typhoon-dot::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.15);
+}
+
+.wind-circle {
+  position: absolute; border-radius: 50%;
+  border: 1px dashed rgba(0,0,0,0.08);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), height 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.wind-circle-10 { border: 1px dashed rgba(0,0,0,0.05); }
+
+.direction-arrow {
+  position: absolute; width: 16px; height: 1px; background: rgba(0,0,0,0.2);
+  transform-origin: left center;
+  transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.direction-arrow::after {
+  content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  width: 0; height: 0;
+  border-left: 4px solid rgba(0,0,0,0.2);
+  border-top: 3px solid transparent; border-bottom: 3px solid transparent;
+}
+
+/* ============ INFO OVERLAY ============ */
+.info-overlay {
+  position: absolute; bottom: 14%; left: 32px; right: 32px;
+  z-index: 4; pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.info-overlay.fading { opacity: 0; }
+
+/* Row 1: Name + Tag */
+.typhoon-name-row {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px;
+}
+
+.typhoon-name {
+  font-family: "Noto Serif SC", "SimSun", "STSong", serif;
+  font-size: 42px; font-weight: 400; color: var(--c-ink);
+  line-height: 1.1; text-wrap: pretty;
+}
+.typhoon-name-en {
+  font-family: "PingFang SC", "Hiragino Sans GB", sans-serif;
+  font-size: 13px; color: var(--c-ink4); letter-spacing: 0.04em;
+  margin-bottom: 16px; display: block;
+}
+
+.intensity-tag {
+  font-size: 13px; font-family: "PingFang SC", "Hiragino Sans GB", sans-serif;
+  letter-spacing: 0.05em; transition: color 0.5s ease;
+  display: flex; align-items: center; gap: 5px;
+}
+.intensity-tag::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; flex-shrink: 0;
+}
+
+/* Row 2: Hero wind speed */
+.wind-speed-hero { margin-bottom: 18px; }
+
+.wind-speed-label {
+  display: block; font-size: 11px; color: var(--c-ink4);
+  letter-spacing: 0.06em; margin-bottom: 0;
+}
+
+.wind-speed-row {
+  display: flex; align-items: baseline; gap: 6px;
+}
+
+.wind-speed-num {
+  font-family: "Noto Serif SC", "SimSun", "STSong", serif;
+  font-size: 72px; font-weight: 700; color: var(--c-ink);
+  line-height: 1; font-feature-settings: "tnum";
+}
+.wind-speed-unit {
+  font-family: "PingFang SC", "Hiragino Sans GB", sans-serif;
+  font-size: 18px; font-weight: 400; color: var(--c-ink2);
+  letter-spacing: 0.04em;
+}
+
+/* Row 3: Key data — typographic grid */
+.data-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  row-gap: 2px;
+  margin-bottom: 12px;
+}
+
+.data-label {
+  font-size: 11px; color: var(--c-ink4);
+  letter-spacing: 0.05em; white-space: nowrap;
+  padding-top: 1px;
+}
+
+.data-value {
+  font-size: 13px; color: var(--c-ink2);
+  letter-spacing: 0.03em; text-wrap: pretty;
+}
+
+/* Row 4: Wind circles with bars */
+.wind-bars { margin-bottom: 6px; }
+
+.wind-bar-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 2px;
+}
+.wind-bar-label {
+  font-size: 11px; color: var(--c-ink4);
+  letter-spacing: 0.05em; width: 64px; flex-shrink: 0;
+}
+.wind-bar-track {
+  flex: 1; max-width: 120px; height: 2px;
+  background: rgba(0,0,0,0.06); border-radius: 1px;
+  position: relative;
+}
+.wind-bar-fill {
+  position: absolute; left: 0; top: 0; height: 100%; border-radius: 1px;
+  transition: width 0.5s ease, background-color 0.5s ease;
+}
+.wind-bar-value {
+  font-size: 12px; color: var(--c-ink3);
+  font-family: "PingFang SC", "Hiragino Sans GB", sans-serif;
+  letter-spacing: 0.03em; flex-shrink: 0; width: 48px; text-align: right;
+}
+
+/* Row 5: Observation time */
+.obs-time {
+  font-size: 10px; color: var(--c-ink4);
+  letter-spacing: 0.06em; margin-top: 4px;
+}
+
+/* ============ BOTTOM SECTION ============ */
+.bottom-section {
+  position: relative; z-index: 5;
+  padding: 0 32px 36px; background: #FFFFFF;
+}
+.bottom-divider {
+  height: 1px; background: rgba(0,0,0,0.08); margin-bottom: 18px;
+}
+.bottom-tabs {
+  display: flex; gap: 28px; margin-bottom: 18px;
+}
+.bottom-tabs button {
+  background: none; border: none;
+  font-size: 13px; font-family: "PingFang SC", "Hiragino Sans GB", sans-serif;
+  color: var(--c-ink4); cursor: pointer; padding: 0;
+  letter-spacing: 0.04em; transition: color 0.3s;
+  position: relative;
+}
+.bottom-tabs button::after {
+  content: ''; position: absolute; bottom: -2px; left: 0; right: 0;
+  height: 1px; background: transparent; transition: background 0.3s;
+}
+.bottom-tabs button.active { color: var(--c-ink); }
+.bottom-tabs button.active::after { background: var(--c-ink); }
+
+.bottom-content { transition: opacity 0.35s ease; }
+.bottom-content.fading { opacity: 0; }
+
+.path-list { list-style: none; }
+.path-list li {
+  display: flex; align-items: baseline; gap: 8px;
+  font-family: "PingFang SC", "Hiragino Sans GB", sans-serif;
+  font-size: 13px; color: var(--c-ink2);
+  line-height: 2; letter-spacing: 0.03em; padding: 2px 0;
+}
+.path-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 1px;
+  transition: background-color 0.5s ease;
+}
+
+.news-list { list-style: none; }
+.news-list li {
+  font-family: "PingFang SC", "Hiragino Sans GB", sans-serif;
+  font-size: 13px; color: var(--c-ink2);
+  line-height: 1.8; letter-spacing: 0.02em;
+  padding: 5px 0 5px 12px; border-left: 1px solid rgba(0,0,0,0.08);
+  transition: border-color 0.5s ease;
+}
+
+/* ============ DESKTOP ============ */
+@media (min-width: 768px) {
+  .site-header { padding: 24px 56px 16px; }
+  .map-area { height: 82vh; height: 82dvh; }
+  .info-overlay { left: 56px; right: 56px; bottom: 16%; }
+  .bottom-section { padding: 0 56px 40px; }
+  .typhoon-name { font-size: 52px; }
+  .typhoon-name-en { font-size: 14px; margin-bottom: 20px; }
+  .wind-speed-num { font-size: 88px; }
+  .wind-speed-unit { font-size: 22px; }
+  .data-grid { column-gap: 16px; row-gap: 3px; }
+  .data-label { font-size: 12px; }
+  .data-value { font-size: 14px; }
+  .wind-bar-track { max-width: 160px; }
+}
+
+@media (min-width: 1200px) {
+  .site-header { padding: 32px 80px 20px; }
+  .info-overlay { left: 80px; max-width: 560px; }
+  .bottom-section { padding: 0 80px 48px; max-width: 900px; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <span class="site-title">TYPHOON · LIVE</span>
+  <nav>
+    <ul class="typhoon-switcher" id="switcher"></ul>
+  </nav>
+</header>
+
+<main class="map-area">
+  <div class="map-bg">
+    <div class="cloud cloud-1"></div>
+    <div class="cloud cloud-2"></div>
+    <div class="cloud cloud-3"></div>
+    <div class="cloud cloud-4"></div>
+    <div class="cloud cloud-5"></div>
+  </div>
+
+  <div class="compass compass-n">北</div>
+  <div class="compass compass-s">南</div>
+  <div class="compass compass-e">东</div>
+  <div class="compass compass-w">西</div>
+
+  <div class="typhoon-marker" id="typhoonMarker">
+    <div class="typhoon-dot" id="typhoonDot" style="background-color:#EF4444;"></div>
+    <div class="wind-circle wind-circle-7" id="windCircle7" style="width:170px;height:170px;"></div>
+    <div class="wind-circle wind-circle-10" id="windCircle10" style="width:66px;height:66px;"></div>
+    <div class="direction-arrow" id="directionArrow" style="transform:translate(-50%,-50%) rotate(-135deg);"></div>
+  </div>
+
+  <div class="map-fade"></div>
+
+  <div class="info-overlay" id="infoOverlay">
+    <div class="typhoon-name-row">
+      <span class="typhoon-name" id="typhoonName">杜苏芮</span>
+      <span class="intensity-tag" id="intensityTag" style="color:#EF4444;">超强台风</span>
+    </div>
+    <span class="typhoon-name-en" id="typhoonNameEn">Doksuri / 2305</span>
+
+    <div class="wind-speed-hero">
+      <span class="wind-speed-label">最大风速</span>
+      <div class="wind-speed-row">
+        <span class="wind-speed-num" id="windSpeedNum">62</span>
+        <span class="wind-speed-unit">m/s</span>
+      </div>
+    </div>
+
+    <div class="data-grid" id="dataGrid"></div>
+
+    <div class="wind-bars" id="windBars"></div>
+
+    <div class="obs-time" id="obsTime">观测时间 2025-07-25 14:00</div>
+  </div>
+</main>
+
+<section class="bottom-section">
+  <div class="bottom-divider"></div>
+  <div class="bottom-tabs">
+    <button class="active" data-tab="path">历史路径</button>
+    <button data-tab="news">相关资讯</button>
+  </div>
+  <div class="bottom-content" id="bottomContent"></div>
+</section>
+
+<script>
+(function() {
+  var intensityColors = {
+    TD: '#30C55A', TS: '#3B82F6', STS: '#F7C948',
+    TY: '#F59E0B', STY: '#EC4899', SuperTY: '#EF4444'
+  };
+
+  var typhoons = [
+    {
+      name: '杜苏芮', nameEn: 'Doksuri', code: '2305',
+      intensity: 'SuperTY', intensityLabel: '超强台风',
+      windSpeed: 62, pressure: 915, level: '17级以上',
+      direction: '西北', speedKmh: 15,
+      lat: 22.5, lng: 125.6,
+      wind7: 360, wind10: 140,
+      mapX: 52, mapY: 38, arrowDeg: 225,
+      windCircle7Px: 170, windCircle10Px: 66,
+      path: [
+        { t:'07-25 14:00', level:'超强台风', pos:'22.5°N 125.6°E' },
+        { t:'07-25 08:00', level:'超强台风', pos:'21.8°N 126.3°E' },
+        { t:'07-24 20:00', level:'强台风', pos:'20.9°N 127.1°E' },
+        { t:'07-24 08:00', level:'强台风', pos:'19.5°N 128.0°E' },
+        { t:'07-23 20:00', level:'台风', pos:'18.2°N 129.2°E' },
+        { t:'07-23 08:00', level:'台风', pos:'16.8°N 130.5°E' }
+      ],
+      news: [
+        '中央气象台发布台风红色预警，预计"杜苏芮"将于28日早晨到上午在福建沿海登陆',
+        '福建省启动防台风Ⅰ级应急响应，沿海养殖渔排人员全部撤离上岸',
+        '受台风外围环流影响，浙江、江西等地将出现强降雨天气'
+      ]
+    },
+    {
+      name: '卡努', nameEn: 'Khanun', code: '2306',
+      intensity: 'TY', intensityLabel: '台风',
+      windSpeed: 40, pressure: 955, level: '13级',
+      direction: '西北偏西', speedKmh: 20,
+      lat: 26.1, lng: 131.8,
+      wind7: 280, wind10: 100,
+      mapX: 62, mapY: 32, arrowDeg: 247,
+      windCircle7Px: 132, windCircle10Px: 47,
+      path: [
+        { t:'07-25 14:00', level:'台风', pos:'26.1°N 131.8°E' },
+        { t:'07-25 08:00', level:'台风', pos:'25.4°N 132.5°E' },
+        { t:'07-24 20:00', level:'强热带风暴', pos:'24.6°N 133.2°E' },
+        { t:'07-24 08:00', level:'强热带风暴', pos:'23.8°N 134.0°E' },
+        { t:'07-23 20:00', level:'热带风暴', pos:'22.5°N 135.5°E' },
+        { t:'07-23 08:00', level:'热带风暴', pos:'21.2°N 137.0°E' }
+      ],
+      news: [
+        '台风"卡努"持续向西北偏西方向移动，强度逐渐加强',
+        '预计"卡努"将于下周初进入东海海域，华东沿海需密切关注',
+        '日本气象厅发布台风预警，琉球群岛可能受到直接影响'
+      ]
+    },
+    {
+      name: '兰恩', nameEn: 'Lan', code: '2307',
+      intensity: 'TS', intensityLabel: '热带风暴',
+      windSpeed: 23, pressure: 990, level: '9级',
+      direction: '东北', speedKmh: 10,
+      lat: 15.3, lng: 148.2,
+      wind7: 150, wind10: null,
+      mapX: 82, mapY: 62, arrowDeg: 315,
+      windCircle7Px: 71, windCircle10Px: 0,
+      path: [
+        { t:'07-25 14:00', level:'热带风暴', pos:'15.3°N 148.2°E' },
+        { t:'07-25 08:00', level:'热带风暴', pos:'14.8°N 147.5°E' },
+        { t:'07-24 20:00', level:'热带低压', pos:'14.2°N 146.8°E' },
+        { t:'07-24 08:00', level:'热带低压', pos:'13.5°N 146.0°E' },
+        { t:'07-23 20:00', level:'热带低压', pos:'12.8°N 145.2°E' }
+      ],
+      news: [
+        '热带风暴"兰恩"在西北太平洋洋面生成，目前中心风力23m/s',
+        '"兰恩"路径偏北，暂不直接影响我国近海',
+        '预计未来三天内"兰恩"将缓慢增强，可能发展为强热带风暴'
+      ]
+    }
+  ];
+
+  var currentTyphoon = 0;
+  var currentTab = 'path';
+
+  /* ---- Build switcher chips ---- */
+  var switcherEl = document.getElementById('switcher');
+  for (var i = 0; i < typhoons.length; i++) {
+    var t = typhoons[i];
+    var li = document.createElement('li');
+    var btn = document.createElement('button');
+    if (i === 0) btn.className = 'active';
+    btn.setAttribute('data-index', i);
+
+    var dot = document.createElement('span');
+    dot.className = 'switcher-dot';
+    dot.style.color = intensityColors[t.intensity];
+    btn.appendChild(dot);
+
+    var label = document.createTextNode(t.name);
+    btn.appendChild(label);
+    li.appendChild(btn);
+
+    switcherEl.appendChild(li);
+
+    if (i < typhoons.length - 1) {
+      var sep = document.createElement('li');
+      sep.className = 'sep';
+      sep.textContent = '·';
+      switcherEl.appendChild(sep);
+    }
+  }
+
+  /* ---- Refs ---- */
+  var els = {
+    marker: document.getElementById('typhoonMarker'),
+    dot: document.getElementById('typhoonDot'),
+    wind7: document.getElementById('windCircle7'),
+    wind10: document.getElementById('windCircle10'),
+    arrow: document.getElementById('directionArrow'),
+    info: document.getElementById('infoOverlay'),
+    name: document.getElementById('typhoonName'),
+    nameEn: document.getElementById('typhoonNameEn'),
+    tag: document.getElementById('intensityTag'),
+    speed: document.getElementById('windSpeedNum'),
+    dataGrid: document.getElementById('dataGrid'),
+    windBars: document.getElementById('windBars'),
+    obsTime: document.getElementById('obsTime'),
+    bottomContent: document.getElementById('bottomContent')
+  };
+
+  function fadeOut(el, cb) {
+    el.classList.add('fading');
+    setTimeout(function() { cb(); fadeIn(el); }, 380);
+  }
+
+  function fadeOutOnly(el, cb) {
+    el.classList.add('fading');
+    setTimeout(cb, 360);
+  }
+
+  function fadeIn(el) {
+    setTimeout(function() { el.classList.remove('fading'); }, 50);
+  }
+
+  /* ---- Render typhoon info ---- */
+  function renderInfo(t, color) {
+    els.name.textContent = t.name;
+    els.nameEn.textContent = t.nameEn + ' / ' + t.code;
+    els.tag.textContent = t.intensityLabel;
+    els.tag.style.color = color;
+    els.speed.textContent = t.windSpeed;
+
+    var html = '';
+    html += '<span class="data-label">中心气压</span><span class="data-value">' + t.pressure + ' hPa</span>';
+    html += '<span class="data-label">风力等级</span><span class="data-value">' + t.level + '</span>';
+    html += '<span class="data-label">移动</span><span class="data-value">' + t.direction + ' ' + t.speedKmh + ' km/h</span>';
+    html += '<span class="data-label">中心位置</span><span class="data-value">' + t.lat + '°N ' + t.lng + '°E</span>';
+    els.dataGrid.innerHTML = html;
+
+    var bars = '';
+    bars += '<div class="wind-bar-row">';
+    bars += '<span class="wind-bar-label">七级风圈</span>';
+    bars += '<span class="wind-bar-track"><span class="wind-bar-fill" style="width:' + Math.min(100, t.wind7 / 4.5) + '%;background:' + color + ';opacity:0.2;"></span></span>';
+    bars += '<span class="wind-bar-value">' + t.wind7 + ' km</span>';
+    bars += '</div>';
+    if (t.wind10) {
+      bars += '<div class="wind-bar-row">';
+      bars += '<span class="wind-bar-label">十级风圈</span>';
+      bars += '<span class="wind-bar-track"><span class="wind-bar-fill" style="width:' + Math.min(100, t.wind10 / 2) + '%;background:' + color + ';opacity:0.3;"></span></span>';
+      bars += '<span class="wind-bar-value">' + t.wind10 + ' km</span>';
+      bars += '</div>';
+    }
+    els.windBars.innerHTML = bars;
+  }
+
+  /* ---- Update map elements ---- */
+  function updateMap(t, color) {
+    els.marker.style.left = t.mapX + '%';
+    els.marker.style.top = t.mapY + '%';
+    els.dot.style.backgroundColor = color;
+    els.wind7.style.width = t.windCircle7Px + 'px';
+    els.wind7.style.height = t.windCircle7Px + 'px';
+    els.wind10.style.width = t.windCircle10Px + 'px';
+    els.wind10.style.height = t.windCircle10Px + 'px';
+    els.arrow.style.transform = 'translate(-50%,-50%) rotate(' + t.arrowDeg + 'deg)';
+  }
+
+  /* ---- Update bottom content ---- */
+  function updateBottomContent() {
+    var t = typhoons[currentTyphoon];
+    var color = intensityColors[t.intensity];
+    var el = els.bottomContent;
+
+    if (currentTab === 'path') {
+      var html = '<ul class="path-list">';
+      for (var i = 0; i < t.path.length; i++) {
+        var p = t.path[i];
+        html += '<li>';
+        html += '<span class="path-dot" style="background:' + color + ';"></span>';
+        html += p.t + ' · ' + p.level + ' · ' + p.pos;
+        html += '</li>';
+      }
+      html += '</ul>';
+      fadeOutOnly(el, function() { el.innerHTML = html; fadeIn(el); });
+    } else {
+      var html = '<ul class="news-list">';
+      for (var i = 0; i < t.news.length; i++) {
+        html += '<li style="border-left-color:' + color + ';border-left-color:rgba(0,0,0,0.08);">' + t.news[i] + '</li>';
+      }
+      html += '</ul>';
+      fadeOutOnly(el, function() { el.innerHTML = html; fadeIn(el); });
+    }
+  }
+
+  /* ---- Switch typhoon ---- */
+  function switchTyphoon(index) {
+    if (index === currentTyphoon) return;
+    currentTyphoon = index;
+    var t = typhoons[index];
+    var color = intensityColors[t.intensity];
+
+    fadeOut(els.info, function() { renderInfo(t, color); });
+    updateMap(t, color);
+    updateBottomContent();
+  }
+
+  /* ---- Switch tab ---- */
+  function switchTab(tab) {
+    if (tab === currentTab) return;
+    currentTab = tab;
+    updateBottomContent();
+  }
+
+  /* ---- Events ---- */
+  var btns = document.querySelectorAll('.typhoon-switcher button');
+  for (var i = 0; i < btns.length; i++) {
+    (function(idx) {
+      btns[idx].addEventListener('click', function() {
+        for (var j = 0; j < btns.length; j++) {
+          btns[j].classList.remove('active');
+          var d = btns[j].querySelector('.switcher-dot');
+          d.style.backgroundColor = 'transparent';
+        }
+        btns[idx].classList.add('active');
+        var dot = btns[idx].querySelector('.switcher-dot');
+        dot.style.backgroundColor = intensityColors[typhoons[idx].intensity];
+        switchTyphoon(idx);
+      });
+    })(i);
+  }
+
+  var tabs = document.querySelectorAll('.bottom-tabs button');
+  for (var i = 0; i < tabs.length; i++) {
+    (function(idx) {
+      tabs[idx].addEventListener('click', function() {
+        for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+        tabs[idx].classList.add('active');
+        switchTab(tabs[idx].getAttribute('data-tab'));
+      });
+    })(i);
+  }
+
+  /* ---- Init ---- */
+  renderInfo(typhoons[0], intensityColors.SuperTY);
+  els.marker.style.left = typhoons[0].mapX + '%';
+  els.marker.style.top = typhoons[0].mapY + '%';
+  els.arrow.style.transform = 'translate(-50%,-50%) rotate(' + typhoons[0].arrowDeg + 'deg)';
+  updateBottomContent();
+})();
+</script>
+
+</body>
+</html>

@@ -1,145 +1,107 @@
 /* ============================================================
- * panel.js — 底部信息面板(bottom sheet)
+ * panel.js — 信息浮层 + 底部路径/资讯列表
  *
- *   · 三种状态:collapsed(只露头部)/ normal / expanded
- *   · 手势:拖拽把手或点击切换
- *   · 展开区:强度变化曲线 + 「路径点 / 相关资讯」两个标签页
- *   · stat 卡片点击可展开完整文字(burst)
+ *   信息区悬浮在地图左下角,展示台风核心数据。
+ *   底部区域包含「历史路径」和「相关资讯」两个标签页。
  * ============================================================ */
 
 const PANEL = (() => {
 
   const $ = (id) => document.getElementById(id);
-  let el, currentTyphoon = null;
-  let onPointSelect = null; // 列表点选回调,由 app.js 注入
+  let onPointSelect = null;
+  let currentTab = 'track';
 
   const fmt = (v, dash = '—') => (v === null || v === undefined || v === '' || Number.isNaN(v)) ? dash : v;
 
-  /* ---------- 状态切换 ---------- */
-  let stateChangedAt = 0; // 记录状态切换时间,用于拦截随后的"幽灵点击"
+  /* ---------- 信息浮层渲染 ---------- */
 
-  function setState(state) { // 'collapsed' | 'normal' | 'expanded'
-    stateChangedAt = Date.now();
-    el.classList.toggle('collapsed', state === 'collapsed');
-    el.classList.toggle('expanded', state === 'expanded');
-  }
-  function getState() {
-    if (el.classList.contains('collapsed')) return 'collapsed';
-    if (el.classList.contains('expanded')) return 'expanded';
-    return 'normal';
-  }
-  function cycle(dir) { // dir: 1 向上展开, -1 向下收起
-    const order = ['collapsed', 'normal', 'expanded'];
-    const i = order.indexOf(getState());
-    setState(order[Math.min(2, Math.max(0, i + dir))]);
+  function renderDataGrid(p, lvColor) {
+    const rows = [
+      { label: '中心气压', value: fmt(p.pressure) + ' hPa' },
+      { label: '风力等级', value: fmt(p.power) + '级' },
+    ];
+    if (p.moveDir || p.moveSpeed) {
+      rows.push({ label: '移动', value: [fmt(p.moveDir, ''), fmt(p.moveSpeed, '') + ' km/h'].filter(Boolean).join(' ') || '—' });
+    }
+    rows.push({ label: '中心位置', value: p.lat != null ? p.lat.toFixed(1) + '°N ' + p.lng.toFixed(1) + '°E' : '—' });
+    return rows.map(r =>
+      '<span class="data-label">' + r.label + '</span><span class="data-value">' + r.value + '</span>'
+    ).join('');
   }
 
-  /* ---------- 拖拽手势 ---------- */
-  function bindGesture() {
-    const handle = $('panelHandle');
-    let startY = null;
-
-    const start = (y) => { startY = y; };
-    const end = (y) => {
-      if (startY === null) return;
-      const dy = y - startY;
-      if (Math.abs(dy) < 24) cycle(getState() === 'expanded' ? -1 : 1); // 视为点击
-      else cycle(dy < 0 ? 1 : -1);
-      startY = null;
-    };
-
-    handle.addEventListener('touchstart', e => start(e.touches[0].clientY), { passive: true });
-    // touchend 必须 preventDefault:否则面板上滑后,浏览器会在原触点
-    // 补发一次合成 click,正好落在滑上来的新闻链接上导致误跳转
-    handle.addEventListener('touchend', e => {
-      e.preventDefault();
-      end(e.changedTouches[0].clientY);
-    }, { passive: false });
-    handle.addEventListener('mousedown',  e => start(e.clientY));
-    window.addEventListener('mouseup',    e => startY !== null && end(e.clientY));
+  function renderWindBars(p, lvColor) {
+    if (!p.r7) return '';
+    const maxR = 500;
+    let html = '';
+    html += '<div class="wind-bar-row">';
+    html += '<span class="wind-bar-label">七级风圈</span>';
+    html += '<span class="wind-bar-track"><span class="wind-bar-fill" style="width:' + Math.min(100, Math.max(p.r7.ne, p.r7.se, p.r7.sw, p.r7.nw) / maxR * 100) + '%;background:' + lvColor + ';opacity:.2;"></span></span>';
+    html += '<span class="wind-bar-value">' + Math.max(p.r7.ne, p.r7.se, p.r7.sw, p.r7.nw) + ' km</span>';
+    html += '</div>';
+    if (p.r10) {
+      html += '<div class="wind-bar-row">';
+      html += '<span class="wind-bar-label">十级风圈</span>';
+      html += '<span class="wind-bar-track"><span class="wind-bar-fill" style="width:' + Math.min(100, Math.max(p.r10.ne, p.r10.se, p.r10.sw, p.r10.nw) / maxR * 100) + '%;background:' + lvColor + ';opacity:.32;"></span></span>';
+      html += '<span class="wind-bar-value">' + Math.max(p.r10.ne, p.r10.se, p.r10.sw, p.r10.nw) + ' km</span>';
+      html += '</div>';
+    }
+    return html;
   }
 
-  /* ---------- 标签页 ---------- */
-  function bindTabs() {
-    el.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        el.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
-        el.querySelectorAll('.tab-page').forEach(pg =>
-          pg.hidden = pg.dataset.page !== tab.dataset.tab);
-      });
-    });
-  }
-
-  /* ---------- 强度变化曲线(最大风速 sparkline) ---------- */
-  function renderSpark(ty) {
-    const box = $('sparkline');
-    const pts = ty.points.filter(p => p.speed !== null);
-    if (pts.length < 2) { box.innerHTML = ''; return; }
-
-    const W = 320, H = 56, PAD = 6;
-    const speeds = pts.map(p => p.speed);
-    const min = Math.min(...speeds), max = Math.max(...speeds);
-    const x = (i) => PAD + i * (W - PAD * 2) / (pts.length - 1);
-    const y = (v) => max === min ? H / 2 : H - PAD - (v - min) * (H - PAD * 2) / (max - min);
-
-    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.speed).toFixed(1)}`).join('');
-    const dots = pts.map((p, i) =>
-      `<circle cx="${x(i).toFixed(1)}" cy="${y(p.speed).toFixed(1)}" r="2.4"
-        fill="${TYPHOON.colorOf(p.level)}"/>`).join('');
-
-    box.innerHTML = `
-      <div class="spark-head">
-        <span>强度变化 · 最大风速</span>
-        <span class="spark-range">${min}–${max} m/s</span>
-      </div>
-      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-        <path d="${path}" fill="none" stroke="rgba(232,241,248,.35)" stroke-width="1.5"/>
-        ${dots}
-      </svg>`;
-  }
-
-  /* ---------- 渲染 ---------- */
   function showPoint(p) {
     const lvColor = TYPHOON.colorOf(p.level);
-    const badge = $('tyBadge');
-    badge.textContent = p.strong;
-    badge.style.setProperty('--lv-color', lvColor);
-    badge.style.background = lvColor;
 
-    $('tyTime').textContent = p.time;
-    $('stPressure').textContent = fmt(p.pressure);
+    $('tyBadge').textContent = p.strong;
+    $('tyBadge').style.color = lvColor;
     $('stSpeed').textContent = fmt(p.speed);
-    $('stPower').textContent = fmt(p.power);
-    $('stMove').textContent = `${fmt(p.moveDir, '')} ${fmt(p.moveSpeed)}`.trim() || '—';
-    $('stPos').textContent = `${p.lat.toFixed(1)}°N ${p.lng.toFixed(1)}°E`;
-    $('stR7').textContent = p.r7 ? `${p.r7.ne}/${p.r7.se}/${p.r7.sw}/${p.r7.nw}` : '—';
+    $('tyTime').textContent = '观测时间 ' + (p.time || '—');
+
+    $('dataGrid').innerHTML = renderDataGrid(p, lvColor);
+    $('windBars').innerHTML = renderWindBars(p, lvColor);
 
     // 列表高亮
     document.querySelectorAll('.track-list li').forEach(li =>
       li.classList.toggle('current', li.dataset.time === p.time));
   }
 
+  /* ---------- 历史路径列表 ---------- */
+
   function renderList(ty) {
     const list = $('trackList');
     list.innerHTML = '';
-    // 最新在前
     [...ty.points].reverse().forEach(p => {
       const li = document.createElement('li');
       li.dataset.time = p.time;
-      li.innerHTML = `
-        <span class="t-dot" style="background:${TYPHOON.colorOf(p.level)}"></span>
-        <span class="t-time">${p.time.slice(5, 16)}</span>
-        <span class="t-lv">${p.strong}</span>
-        <span class="t-val">${fmt(p.speed)}m/s ${fmt(p.pressure)}hPa</span>`;
+      const lvColor = TYPHOON.colorOf(p.level);
+      li.innerHTML =
+        '<span class="track-dot" style="background:' + lvColor + ';"></span>' +
+        '<span class="track-time">' + (p.time || '').slice(5, 16) + '</span>' +
+        '<span class="track-lv">' + p.strong + '</span>' +
+        '<span class="track-val">' + fmt(p.speed) + 'm/s ' + fmt(p.pressure) + 'hPa</span>';
       li.addEventListener('click', () => {
         showPoint(p);
-        onPointSelect && onPointSelect(p);
+        if (onPointSelect) onPointSelect(p);
       });
       list.appendChild(li);
     });
   }
 
-  // 新闻区渲染,由 app.js 拉取数据后调用
+  /* ---------- 标签页 ---------- */
+
+  function bindTabs() {
+    document.querySelectorAll('.bottom-tabs .tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.bottom-tabs .tab').forEach(t => t.classList.toggle('active', t === tab));
+        const page = tab.dataset.tab;
+        currentTab = page;
+        $('trackList').hidden = page !== 'track';
+        $('newsList').hidden = page !== 'news';
+      });
+    });
+  }
+
+  /* ---------- 资讯渲染 ---------- */
+
   function renderNews(result) {
     const box = $('newsList');
     if (!result || !result.items.length) {
@@ -149,7 +111,7 @@ const PANEL = (() => {
     const hint = result.mode === 'links'
       ? '<li class="news-hint">按台风名生成的资讯入口,点击查看详情</li>' : '';
     box.innerHTML = hint + result.items.map((n, i) => {
-      const color = n.color || '#94a3b8';
+      const color = n.color || 'var(--c-ink3)';
       return `
       <li class="news-item">
         <span class="news-dot" style="background:${color}"></span>
@@ -159,10 +121,10 @@ const PANEL = (() => {
             <span class="news-reltime">${n.rel || n.time || ''}</span>
           </div>
           <div class="news-card-main">
-            <span class="news-icon">${n.icon || '📰'}</span>
+            <span class="news-icon">${n.icon || ''}</span>
             <span class="news-body">
               <span class="news-title">${n.title}</span>
-              ${n.intro ? `<span class="news-intro">${n.intro}</span>` : ''}
+              ${n.intro ? '<span class="news-intro">' + n.intro + '</span>' : ''}
             </span>
             <span class="news-arrow">›</span>
           </div>
@@ -182,7 +144,6 @@ const PANEL = (() => {
     const list = $('newsList');
     list.addEventListener('click', (e) => {
       if (e.target.closest('.news-action')) return;
-
       const card = e.target.closest('.news-card');
       if (!card) return;
 
@@ -201,53 +162,18 @@ const PANEL = (() => {
     });
   }
 
-  function show(ty) {
-    currentTyphoon = ty;
-    $('tyName').textContent = ty.name;
-    $('tyEnName').textContent = ty.enName ? `${ty.enName} · 编号 ${ty.id}` : `编号 ${ty.id}`;
-    renderList(ty);
-    renderSpark(ty);
-    if (ty.latest) showPoint(ty.latest);
-    setState('normal');
-  }
+  /* ---------- 主入口 ---------- */
 
-  /* ---------- 点击 stat 卡片展开文字 ---------- */
-  function bindStatClick() {
-    const panel = $('panel');
-    panel.addEventListener('click', (e) => {
-      const stat = e.target.closest('.stat');
-      if (!stat) return;
-      e.stopPropagation();
-      const wasBurst = stat.classList.contains('burst');
-      // 收起所有已展开的
-      panel.querySelectorAll('.stat.burst').forEach(s => s.classList.remove('burst'));
-      // 切换当前
-      if (!wasBurst) stat.classList.add('burst');
-    });
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('#panel')) {
-        panel.querySelectorAll('.stat.burst').forEach(s => s.classList.remove('burst'));
-      }
-    });
+  function show(ty) {
+    $('tyName').textContent = ty.name;
+    $('tyEnName').textContent = ty.enName ? ty.enName + ' · 编号 ' + ty.id : '编号 ' + ty.id;
+    renderList(ty);
+    if (ty.latest) showPoint(ty.latest);
   }
 
   function init() {
-    el = $('panel');
-    bindGesture();
-    bindStatClick();
     bindTabs();
     bindNewsClick();
-
-    // 第二道防线:面板刚完成收起/展开的瞬间(450ms 内),
-    // 拦截落在新闻列表上的点击,避免任何形式的误触跳转
-    $('newsList').addEventListener('click', (e) => {
-      if (Date.now() - stateChangedAt < 450) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, true);
-
-    setState('normal');
   }
 
   return {
