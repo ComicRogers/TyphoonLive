@@ -265,6 +265,25 @@ body {
 }
 .ctl-btn:active { background: rgba(255,255,255,.9); }
 
+/* 下拉菜单 */
+.ctl-dropdown {
+  display: flex; flex-direction: column; gap: 8px;
+  animation: ctlSlideIn .2s ease;
+}
+.ctl-dropdown[hidden] { display: none; }
+
+@keyframes ctlSlideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 激活状态(雷达/云图已打开) */
+.ctl-btn.active {
+  background: rgba(255,255,255,.9);
+  color: var(--c-ink);
+  box-shadow: 0 0 0 1.5px var(--c-ink);
+}
+
 /* ---------- 图例 ---------- */
 .legend {
   position: fixed;
@@ -654,3 +673,94 @@ body {
   .ty-eye svg { animation-duration: 20s; }
   .ty-eye::after { animation: none; }
 }
+
+/* ============================================================
+ * 地图图层控制 — 玻璃态重设计
+ *
+ * 融入页面现有的 glass-morphism 设计语言:
+ *   主按钮:半透明白色玻璃圆钮,与信息浮层卡片同源
+ *   展开胶囊:磨砂玻璃药丸,发丝线分隔
+ *   激活态:墨底反白,与页面 ink/paper 体系一致
+ * ============================================================ */
+
+/* ---------- 主按钮:玻璃圆钮 ---------- */
+#mapControls .ctl-menu {
+  width: 44px; height: 44px; padding: 0;
+  border-radius: 50%;
+  border: .5px solid var(--glass-border);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  color: var(--c-ink2);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--glass-shadow);
+  -webkit-tap-highlight-color: transparent;
+  transition: background .28s ease, transform .28s cubic-bezier(.34,1.4,.64,1), box-shadow .28s ease;
+}
+#mapControls .ctl-menu:hover {
+  background: var(--glass-bg-heavy);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 28px rgba(0,0,0,.09);
+}
+#mapControls .ctl-menu:active { transform: scale(.94); }
+#mapControls .ctl-menu.open {
+  background: rgba(255,255,255,.72);
+}
+
+#mapControls .ctl-menu svg {
+  width: 20px; height: 20px;
+  transition: transform .35s cubic-bezier(.34,1.4,.64,1);
+}
+
+/* ---------- 展开胶囊 ---------- */
+#mapControls .ctl-dropdown {
+  width: 44px; box-sizing: border-box;
+  margin-top: 2px;
+  display: flex; flex-direction: column; align-items: center;
+  background: var(--glass-bg-heavy);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-radius: 22px;
+  border: .5px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+  padding: 3px;
+}
+#mapControls .ctl-dropdown[hidden] { display: none; }
+#mapControls .ctl-dropdown:not([hidden]) {
+  animation: ctlIn .28s cubic-bezier(.22,1,.36,1);
+}
+@keyframes ctlIn {
+  from { opacity: 0; transform: translateY(-8px) scale(.92); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
+
+/* ---------- 工具按钮 ---------- */
+#mapControls .ctl-dropdown .ctl-btn {
+  width: 36px; height: 36px; padding: 0;
+  border: none; border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--c-ink3);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background .2s ease, color .2s ease, transform .2s ease;
+  position: relative;
+}
+#mapControls .ctl-dropdown .ctl-btn svg { width: 17px; height: 17px; }
+#mapControls .ctl-dropdown .ctl-btn + .ctl-btn { margin-top: 2px; }
+#mapControls .ctl-dropdown .ctl-btn + .ctl-btn::before {
+  content: ''; position: absolute; top: -2px; left: 8px; right: 8px;
+  height: 1px; background: rgba(0,0,0,.06);
+}
+
+#mapControls .ctl-dropdown .ctl-btn:hover  { background: rgba(0,0,0,.04); color: var(--c-ink); }
+#mapControls .ctl-dropdown .ctl-btn:active { transform: scale(.92); }
+
+#mapControls .ctl-dropdown .ctl-btn.active {
+  background: rgba(0,0,0,.08); color: var(--c-ink);
+}
+#mapControls .ctl-dropdown .ctl-btn.active + .ctl-btn::before,
+#mapControls .ctl-dropdown .ctl-btn.active::before { opacity: 0; }
+
+#mapControls .ctl-btn.loading svg { animation: ctlPulse 1s ease-in-out infinite; }
+@keyframes ctlPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
